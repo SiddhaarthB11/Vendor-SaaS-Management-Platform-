@@ -1,0 +1,137 @@
+name: slmct
+
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: slmct-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-slmct}
+      POSTGRES_USER: ${POSTGRES_USER:-slmct_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-slmct_password}
+    ports:
+      - "127.0.0.1:${POSTGRES_PUBLISHED_PORT:-5433}:5432"
+    volumes:
+      - slmct-postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    networks:
+      - slmct
+
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    container_name: slmct-api
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV:-production}
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      DATABASE_URL: postgresql://${POSTGRES_USER:-slmct_user}:${POSTGRES_PASSWORD:-slmct_password}@db:5432/${POSTGRES_DB:-slmct}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-["http://localhost:3002","http://127.0.0.1:3002"]}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      NOTDIAMOND_API_KEY: ${NOTDIAMOND_API_KEY:-}
+      NOTDIAMOND_ROUTING_ENABLED: ${NOTDIAMOND_ROUTING_ENABLED:-false}
+      NOTDIAMOND_OPTIMIZE_ENABLED: ${NOTDIAMOND_OPTIMIZE_ENABLED:-false}
+      COPILOT_MODE: ${COPILOT_MODE:-tools}
+      AUTOFIX_FIXER_MODE: ${AUTOFIX_FIXER_MODE:-auto}
+      DEVTOOLS_BASE_URL: ${DEVTOOLS_BASE_URL:-http://127.0.0.1:8000}
+      DEVTOOLS_HOT_RELOAD: ${DEVTOOLS_HOT_RELOAD:-true}
+      DEVTOOLS_REPO_ROOT: ${DEVTOOLS_REPO_ROOT:-/app}
+      SLACK_WEBHOOK_SOFTWARE_REQUESTS: ${SLACK_WEBHOOK_SOFTWARE_REQUESTS:-}
+      SLACK_BOT_TOKEN: ${SLACK_BOT_TOKEN:-}
+      SMTP_PROVIDER: ${SMTP_PROVIDER:-gmail}
+      SMTP_HOST: ${SMTP_HOST:-smtp.gmail.com}
+      SMTP_PORT: ${SMTP_PORT:-465}
+      SMTP_SECURE: ${SMTP_SECURE:-true}
+      SMTP_STARTTLS: ${SMTP_STARTTLS:-false}
+      SMTP_USER: ${SMTP_USER:-}
+      SMTP_PASS: ${SMTP_PASS:-}
+      SMTP_PASSWORD: ${SMTP_PASSWORD:-}
+      SMTP_FROM: ${SMTP_FROM:-}
+      APP_USER_EMAIL_ADMIN: ${APP_USER_EMAIL_ADMIN:-}
+      APP_USER_EMAIL_FINANCE: ${APP_USER_EMAIL_FINANCE:-}
+      APP_USER_EMAIL_IT: ${APP_USER_EMAIL_IT:-}
+      APP_USER_EMAIL_AUDITOR: ${APP_USER_EMAIL_AUDITOR:-}
+      APP_USER_EMAIL_HR: ${APP_USER_EMAIL_HR:-}
+      APP_USER_EMAIL_MANAGER: ${APP_USER_EMAIL_MANAGER:-}
+      APP_USER_EMAIL_EMPLOYEE_1: ${APP_USER_EMAIL_EMPLOYEE_1:-}
+      APP_USER_EMAIL_EMPLOYEE_2: ${APP_USER_EMAIL_EMPLOYEE_2:-}
+      APP_USER_PASSWORD_ADMIN: ${APP_USER_PASSWORD_ADMIN:-}
+      APP_USER_PASSWORD_FINANCE: ${APP_USER_PASSWORD_FINANCE:-}
+      APP_USER_PASSWORD_IT: ${APP_USER_PASSWORD_IT:-}
+      APP_USER_PASSWORD_MANAGER: ${APP_USER_PASSWORD_MANAGER:-}
+      APP_USER_PASSWORD_EMPLOYEE_1: ${APP_USER_PASSWORD_EMPLOYEE_1:-}
+      APP_USER_PASSWORD_EMPLOYEE_2: ${APP_USER_PASSWORD_EMPLOYEE_2:-}
+      EMAIL_DELIVERY_ENABLED: ${EMAIL_DELIVERY_ENABLED:-false}
+      EMAIL_DELIVERY_METHOD: ${EMAIL_DELIVERY_METHOD:-auto}
+      GRAPH_MAIL_SENDER: ${GRAPH_MAIL_SENDER:-}
+      MS_GRAPH_TENANT_ID: ${MS_GRAPH_TENANT_ID:-}
+      MS_GRAPH_CLIENT_ID: ${MS_GRAPH_CLIENT_ID:-}
+      MS_GRAPH_CLIENT_SECRET: ${MS_GRAPH_CLIENT_SECRET:-}
+      EMPLOYEE_SYNC_ORG_CODE: ${EMPLOYEE_SYNC_ORG_CODE:-derisk360_group}
+      EMPLOYEE_SYNC_EMAIL_DOMAIN: ${EMPLOYEE_SYNC_EMAIL_DOMAIN:-}
+      MAILHOG_API_URL: ${MAILHOG_API_URL:-http://mailhog:8025}
+      MAILHOG_WEB_URL: ${MAILHOG_WEB_URL:-http://localhost:8025}
+    ports:
+      - "${API_PUBLISHED_PORT:-8000}:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3).read()\""]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - slmct
+
+  ui:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.ui
+      args:
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:-http://localhost:8000}
+    container_name: slmct-ui
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+    ports:
+      - "${UI_PUBLISHED_PORT:-3002}:3002"
+    depends_on:
+      api:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"fetch('http://127.0.0.1:3002').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))\""]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    networks:
+      - slmct
+
+  mailhog:
+    profiles: ["dev"]
+    image: mailhog/mailhog:latest
+    container_name: slmct-mailhog
+    restart: unless-stopped
+    ports:
+      - "1025:1025" # SMTP server
+      - "8025:8025" # Web UI
+    networks:
+      - slmct
+
+volumes:
+  slmct-postgres-data:
+
+networks:
+  slmct:
+    driver: bridge
