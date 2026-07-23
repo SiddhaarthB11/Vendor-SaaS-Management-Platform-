@@ -1,0 +1,75 @@
+.downloads-page {
+  padding: 2rem;
+  max-width: 1000px;
+  margin: 0 auto;
+}
+
+.downloads-header {
+  margin-bottom: 2rem;
+}
+
+.downloads-header h1 {
+  font-size: 2rem;
+  margin-bottom: 0.5rem;
+}
+
+.downloads-header p {
+  color: var(--muted);
+}
+
+.downloads-section {
+  margin-bottom: 3rem;
+}
+
+.downloads-section h2 {
+  font-size: 1.5rem;
+  margin-bottom: 0.5rem;
+}
+
+.downloads-section > p {
+  color: var(--muted);
+  margin-bottom: 1.5rem;
+}
+
+.downloads-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+}
+
+.download-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.download-card h3 {
+  font-size: 1.25rem;
+  margin: 0;
+}
+
+.download-card p {
+  color: var(--muted);
+  font-size: 0.9rem;
+  margin: 0;
+  flex-grow: 1;
+}
+
+.download-card .k-btn {
+  text-align: center;
+  text-decoration: none;
+  background: var(--primary);
+  color: white;
+  padding: 0.5rem 1rem;
+  border-radius: 4px;
+  font-weight: 500;
+  transition: opacity 0.2s;
+}
+
+.download-card .k-btn:hover {
+  opacity: 0.9;
+}

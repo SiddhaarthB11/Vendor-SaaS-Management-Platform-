@@ -1,0 +1,2651 @@
+{
+  "tool": "judge",
+  "generated_at": "2026-07-23T04:43:47.967161+00:00",
+  "base_url": "http://localhost:8000",
+  "overall": "fail",
+  "summary": {
+    "total_suites": 14,
+    "passed": 8,
+    "failed": 6,
+    "skipped": 0,
+    "total_check_failures": 9
+  },
+  "suites": [
+    {
+      "name": "workflow",
+      "overall": "pass",
+      "status": null,
+      "reason": null,
+      "summary": {
+        "total": 52,
+        "passed": 51,
+        "failed": 0,
+        "warned": 1,
+        "skipped": 0,
+        "overall": "pass"
+      },
+      "checks": [
+        {
+          "name": "Workflow submission",
+          "status": "pass",
+          "detail": "HTTP 201"
+        },
+        {
+          "name": "Workflow ID returned",
+          "status": "pass",
+          "detail": "17fd41ae-8b75-4386-ad11-95d8843cc07e"
+        },
+        {
+          "name": "Initial status is 'submitted'",
+          "status": "pass",
+          "detail": "got: submitted"
+        },
+        {
+          "name": "Submit: employee confirmation email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Submit: line manager action-required email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Submit: subject contains #ID",
+          "status": "pass",
+          "detail": "[Derisk360] Request Submitted \u2013 [DIAG] Microsoft Teams Essentials #17FD41AE"
+        },
+        {
+          "name": "Submit: no raw UUIDs in email body",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "Line manager approval",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Status = line_manager_approved",
+          "status": "pass",
+          "detail": "got: line_manager_approved"
+        },
+        {
+          "name": "LM approval: finance budget-validation email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "LM approval: line manager confirmation email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "LM approval: employee approved notification",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "LM approval: performed_by is name not UUID",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "LM approval: subject has #ID",
+          "status": "pass",
+          "detail": "[Derisk360] Workflow Approved \u2013 Awaiting Budget Validation \u2013 [DIAG] Microsoft Teams Essentials #17FD41AE"
+        },
+        {
+          "name": "LM approval: says 'Line Manager' not 'Master Admin'",
+          "status": "pass",
+          "detail": "correct"
+        },
+        {
+          "name": "Finance budget validation",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Status = finance_approved",
+          "status": "pass",
+          "detail": "got: finance_approved"
+        },
+        {
+          "name": "Finance: IT admin procurement email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Finance: finance confirmation email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Finance: employee budget-approved email",
+          "status": "pass",
+          "detail": "2 found"
+        },
+        {
+          "name": "Finance: IT email has MESSAGE section",
+          "status": "pass",
+          "detail": "present"
+        },
+        {
+          "name": "Finance: IT email performed_by not UUID",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "AI review endpoint responds",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "AI review: valid recommendation",
+          "status": "pass",
+          "detail": "got: reject"
+        },
+        {
+          "name": "AI review: confidence 0-100",
+          "status": "pass",
+          "detail": "got: 95"
+        },
+        {
+          "name": "AI review: reasons not empty",
+          "status": "pass",
+          "detail": "3 reasons"
+        },
+        {
+          "name": "AI review: reasons are non-trivial",
+          "status": "pass",
+          "detail": "a reason was too short"
+        },
+        {
+          "name": "Vendor procurement URL endpoint",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Procurement URL is https",
+          "status": "pass",
+          "detail": "got: https://www.microsoft.com/en-us/microsoft-teams/microsoft-teams-essentials"
+        },
+        {
+          "name": "Procurement URL is not a compare/generic page",
+          "status": "pass",
+          "detail": "https://www.microsoft.com/en-us/microsoft-teams/microsoft-teams-essentials"
+        },
+        {
+          "name": "IT procurement complete",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Status = completed",
+          "status": "pass",
+          "detail": "got: completed"
+        },
+        {
+          "name": "Licence record created",
+          "status": "pass",
+          "detail": "df8f6efe-c179-49b8-8179-b1c5a4355faf"
+        },
+        {
+          "name": "Payment record created for workflow",
+          "status": "pass",
+          "detail": "before=60 after=61"
+        },
+        {
+          "name": "Completion: completed emails sent",
+          "status": "pass",
+          "detail": "2 found"
+        },
+        {
+          "name": "Completion: employee receives completed email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Completion: credentials (Username) in email",
+          "status": "pass",
+          "detail": "present"
+        },
+        {
+          "name": "Completion: security notice present",
+          "status": "pass",
+          "detail": "present"
+        },
+        {
+          "name": "Completion: password change URL in email",
+          "status": "warn",
+          "detail": "missing"
+        },
+        {
+          "name": "Completion: performed_by not UUID",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "Completion: subject has #ID",
+          "status": "pass",
+          "detail": "[Derisk360] Workflow Completed \u2013 [DIAG] Microsoft Teams Essentials is Now Active #17FD41AE"
+        },
+        {
+          "name": "No legacy plain-text emails",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "Subscription record created",
+          "status": "pass",
+          "detail": "id=2434bb87"
+        },
+        {
+          "name": "Subscription status is active",
+          "status": "pass",
+          "detail": "got: active"
+        },
+        {
+          "name": "Payment record on payments page",
+          "status": "pass",
+          "detail": "amount=25.00"
+        },
+        {
+          "name": "Payment linked to budget",
+          "status": "pass",
+          "detail": "linked"
+        },
+        {
+          "name": "Licence/seat record created",
+          "status": "pass",
+          "detail": "id=80c7316c"
+        },
+        {
+          "name": "Licence status is assigned",
+          "status": "pass",
+          "detail": "got: assigned"
+        },
+        {
+          "name": "Licence assigned to requester",
+          "status": "pass",
+          "detail": "correct"
+        },
+        {
+          "name": "Audit log entries written",
+          "status": "pass",
+          "detail": "5 entries"
+        },
+        {
+          "name": "Status history recorded",
+          "status": "pass",
+          "detail": "4 transitions: submitted \u2192 line_manager_approved \u2192 finance_approved \u2192 completed"
+        },
+        {
+          "name": "Final status in history is completed",
+          "status": "pass",
+          "detail": "statuses: ['submitted', 'line_manager_approved', 'finance_approved', 'completed']"
+        }
+      ],
+      "failures": [],
+      "mode": null,
+      "elapsed_ms": 60633
+    },
+    {
+      "name": "it-subscription",
+      "overall": "pass",
+      "status": null,
+      "reason": null,
+      "summary": {
+        "total": 25,
+        "passed": 24,
+        "failed": 0,
+        "warned": 1,
+        "skipped": 0,
+        "overall": "pass"
+      },
+      "checks": [
+        {
+          "name": "Workflow submission",
+          "status": "pass",
+          "detail": "HTTP 201"
+        },
+        {
+          "name": "Workflow ID returned",
+          "status": "pass",
+          "detail": "beb4e93d-a24d-4726-aae9-6d8c59a2ae75"
+        },
+        {
+          "name": "Initial status is 'submitted'",
+          "status": "pass",
+          "detail": "got: submitted"
+        },
+        {
+          "name": "No line manager step",
+          "status": "pass",
+          "detail": "type: new_subscription_request"
+        },
+        {
+          "name": "Submit: finance action-required email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Submit: IT confirmation email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Submit: subject contains #ID",
+          "status": "pass",
+          "detail": "[Derisk360] Request Submitted \u2013 [DIAG] Figma Professional #BEB4E93D"
+        },
+        {
+          "name": "Finance budget validation",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Status = finance_approved",
+          "status": "pass",
+          "detail": "got: finance_approved"
+        },
+        {
+          "name": "Finance: IT admin procurement email",
+          "status": "pass",
+          "detail": "2 found"
+        },
+        {
+          "name": "Finance: finance confirmation email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Finance: IT email has MESSAGE section",
+          "status": "pass",
+          "detail": "present"
+        },
+        {
+          "name": "Finance: IT email performed_by not UUID",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "IT procurement complete",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Status = completed",
+          "status": "pass",
+          "detail": "got: completed"
+        },
+        {
+          "name": "Completion: emails sent",
+          "status": "pass",
+          "detail": "2 found"
+        },
+        {
+          "name": "Completion: subject has #ID",
+          "status": "pass",
+          "detail": "[Derisk360] Action Confirmed \u2013 Procurement Completed \u2013 [DIAG] Figma Professional #BEB4E93D"
+        },
+        {
+          "name": "No legacy plain-text emails",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "Subscription record created",
+          "status": "pass",
+          "detail": "id=b874f57a"
+        },
+        {
+          "name": "Subscription status is active",
+          "status": "pass",
+          "detail": "got: active"
+        },
+        {
+          "name": "Payment record on payments page",
+          "status": "pass",
+          "detail": "amount=750.00"
+        },
+        {
+          "name": "Payment linked to budget",
+          "status": "warn",
+          "detail": "no budget_id"
+        },
+        {
+          "name": "Audit log entries written",
+          "status": "pass",
+          "detail": "4 entries"
+        },
+        {
+          "name": "Status history recorded",
+          "status": "pass",
+          "detail": "3 transitions: submitted \u2192 finance_approved \u2192 completed"
+        },
+        {
+          "name": "Final status in history is completed",
+          "status": "pass",
+          "detail": "statuses: ['submitted', 'finance_approved', 'completed']"
+        }
+      ],
+      "failures": [],
+      "mode": null,
+      "elapsed_ms": 41332
+    },
+    {
+      "name": "ai-test",
+      "overall": "pass",
+      "status": null,
+      "reason": null,
+      "summary": {
+        "total": 56,
+        "passed": 54,
+        "failed": 0,
+        "warned": 2,
+        "skipped": 0,
+        "overall": "pass"
+      },
+      "checks": [
+        {
+          "name": "Tool Summary: endpoint responds",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Tool Summary: non-empty response",
+          "status": "pass",
+          "detail": "415 chars"
+        },
+        {
+          "name": "Tool Summary: not a fallback",
+          "status": "pass",
+          "detail": "provider=gemini"
+        },
+        {
+          "name": "Tool Summary: mentions the tool",
+          "status": "pass",
+          "detail": "Slack is a team communication platform that enables real-time messaging, file sh"
+        },
+        {
+          "name": "Tool Summary: no error text in response",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "Contract Extraction: endpoint responds",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Contract Extraction: provider is gemini",
+          "status": "pass",
+          "detail": "provider=gemini"
+        },
+        {
+          "name": "Contract Extraction: vendor extracted",
+          "status": "pass",
+          "detail": "got: Adobe"
+        },
+        {
+          "name": "Contract Extraction: value extracted",
+          "status": "pass",
+          "detail": "got: 12000"
+        },
+        {
+          "name": "Contract Extraction: start_date extracted",
+          "status": "pass",
+          "detail": "got: 2024-01-15"
+        },
+        {
+          "name": "Contract Extraction: end_date extracted",
+          "status": "pass",
+          "detail": "got: 2025-01-14"
+        },
+        {
+          "name": "Contract Extraction: auto_renew detected",
+          "status": "pass",
+          "detail": "got: True"
+        },
+        {
+          "name": "Contract Extraction: notice_period_days > 0",
+          "status": "pass",
+          "detail": "got: 30"
+        },
+        {
+          "name": "AI Copilot: endpoint responds",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "AI Copilot: non-empty response",
+          "status": "pass",
+          "detail": "566 chars"
+        },
+        {
+          "name": "AI Copilot: provider is gemini",
+          "status": "pass",
+          "detail": "provider=gemini"
+        },
+        {
+          "name": "AI Copilot: returns substantive content",
+          "status": "pass",
+          "detail": "response too short or evasive"
+        },
+        {
+          "name": "AI Copilot: response is markdown",
+          "status": "pass",
+          "detail": "no markdown found"
+        },
+        {
+          "name": "AI Review: workflow found for review",
+          "status": "pass",
+          "detail": "using F08D2E20"
+        },
+        {
+          "name": "AI Review [line_manager]: endpoint responds",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "AI Review [line_manager]: valid recommendation",
+          "status": "pass",
+          "detail": "got: review"
+        },
+        {
+          "name": "AI Review [line_manager]: confidence 0-100",
+          "status": "pass",
+          "detail": "got: 95"
+        },
+        {
+          "name": "AI Review [line_manager]: has reasons",
+          "status": "pass",
+          "detail": "3 reasons"
+        },
+        {
+          "name": "AI Review [line_manager]: reasons are substantive",
+          "status": "pass",
+          "detail": "a reason was too short"
+        },
+        {
+          "name": "AI Review [line_manager]: has concerns field",
+          "status": "pass",
+          "detail": "field missing"
+        },
+        {
+          "name": "AI Review [finance]: endpoint responds",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "AI Review [finance]: valid recommendation",
+          "status": "pass",
+          "detail": "got: review"
+        },
+        {
+          "name": "AI Review [finance]: confidence 0-100",
+          "status": "pass",
+          "detail": "got: 90"
+        },
+        {
+          "name": "AI Review [finance]: has reasons",
+          "status": "pass",
+          "detail": "3 reasons"
+        },
+        {
+          "name": "AI Review [finance]: reasons are substantive",
+          "status": "pass",
+          "detail": "a reason was too short"
+        },
+        {
+          "name": "AI Review [finance]: has concerns field",
+          "status": "pass",
+          "detail": "field missing"
+        },
+        {
+          "name": "AI Review [master_admin]: endpoint responds",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "AI Review [master_admin]: valid recommendation",
+          "status": "pass",
+          "detail": "got: review"
+        },
+        {
+          "name": "AI Review [master_admin]: confidence 0-100",
+          "status": "pass",
+          "detail": "got: 95"
+        },
+        {
+          "name": "AI Review [master_admin]: has reasons",
+          "status": "pass",
+          "detail": "3 reasons"
+        },
+        {
+          "name": "AI Review [master_admin]: reasons are substantive",
+          "status": "pass",
+          "detail": "a reason was too short"
+        },
+        {
+          "name": "AI Review [master_admin]: has concerns field",
+          "status": "pass",
+          "detail": "field missing"
+        },
+        {
+          "name": "AI Review [it_admin]: endpoint responds",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "AI Review [it_admin]: valid recommendation",
+          "status": "pass",
+          "detail": "got: review"
+        },
+        {
+          "name": "AI Review [it_admin]: confidence 0-100",
+          "status": "pass",
+          "detail": "got: 90"
+        },
+        {
+          "name": "AI Review [it_admin]: has reasons",
+          "status": "pass",
+          "detail": "3 reasons"
+        },
+        {
+          "name": "AI Review [it_admin]: reasons are substantive",
+          "status": "pass",
+          "detail": "a reason was too short"
+        },
+        {
+          "name": "AI Review [it_admin]: has concerns field",
+          "status": "pass",
+          "detail": "field missing"
+        },
+        {
+          "name": "AI Review [hr_admin]: endpoint responds",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "AI Review [hr_admin]: valid recommendation",
+          "status": "pass",
+          "detail": "got: review"
+        },
+        {
+          "name": "AI Review [hr_admin]: confidence 0-100",
+          "status": "pass",
+          "detail": "got: 90"
+        },
+        {
+          "name": "AI Review [hr_admin]: has reasons",
+          "status": "pass",
+          "detail": "3 reasons"
+        },
+        {
+          "name": "AI Review [hr_admin]: reasons are substantive",
+          "status": "pass",
+          "detail": "a reason was too short"
+        },
+        {
+          "name": "AI Review [hr_admin]: has concerns field",
+          "status": "pass",
+          "detail": "field missing"
+        },
+        {
+          "name": "Utilisation: all active subscriptions have at least one licence",
+          "status": "warn",
+          "detail": "3 subscription(s) have no licences: Adobe Premier Pro, Microsoft Teams Essentials, Figma"
+        },
+        {
+          "name": "Utilisation: no subscription has all licences sitting unused",
+          "status": "warn",
+          "detail": "1 subscription(s) have licences but none assigned: Claude Pro"
+        },
+        {
+          "name": "Utilisation: no licences assigned to removed employees",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "AI Email: recent emails with AI content found",
+          "status": "pass",
+          "detail": "5 found"
+        },
+        {
+          "name": "AI Email: MESSAGE section is non-empty",
+          "status": "pass",
+          "detail": "MESSAGE section empty in an email"
+        },
+        {
+          "name": "AI Email: no raw error text in emails",
+          "status": "pass",
+          "detail": "error text found in email body"
+        },
+        {
+          "name": "AI Email: emails have substantial body",
+          "status": "pass",
+          "detail": "an email body is too short"
+        }
+      ],
+      "failures": [],
+      "mode": null,
+      "elapsed_ms": 68128
+    },
+    {
+      "name": "licence-assignment",
+      "overall": "pass",
+      "status": null,
+      "reason": null,
+      "summary": {
+        "total": 28,
+        "passed": 27,
+        "failed": 0,
+        "warned": 1,
+        "skipped": 0,
+        "overall": "pass"
+      },
+      "checks": [
+        {
+          "name": "Setup: temp subscription created",
+          "status": "pass",
+          "detail": "1e638e96-218e-4ca5-a9f7-f6dc537b7a87"
+        },
+        {
+          "name": "Setup: employee person record found",
+          "status": "pass",
+          "detail": "595534a7-478b-45be-96f5-ce637d9f9a56"
+        },
+        {
+          "name": "Workflow submission",
+          "status": "pass",
+          "detail": "HTTP 201"
+        },
+        {
+          "name": "Workflow ID returned",
+          "status": "pass",
+          "detail": "4bf354bb-a73d-4024-ba48-1681128296b9"
+        },
+        {
+          "name": "Workflow type = license_assignment_request",
+          "status": "pass",
+          "detail": "got: license_assignment_request"
+        },
+        {
+          "name": "Initial status = submitted",
+          "status": "pass",
+          "detail": "got: submitted"
+        },
+        {
+          "name": "No line manager step",
+          "status": "pass",
+          "detail": "workflow skips LM by design"
+        },
+        {
+          "name": "Submit: finance action-required email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Submit: IT confirmation email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Submit: subject contains #ID",
+          "status": "pass",
+          "detail": "[Derisk360] Request Submitted \u2013 Diag Test Seat #4BF354BB"
+        },
+        {
+          "name": "Finance budget validation",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Status = finance_approved",
+          "status": "pass",
+          "detail": "got: finance_approved"
+        },
+        {
+          "name": "Finance: IT procurement email",
+          "status": "pass",
+          "detail": "2 found"
+        },
+        {
+          "name": "Finance: finance confirmation email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Finance: IT email has MESSAGE section",
+          "status": "pass",
+          "detail": "present"
+        },
+        {
+          "name": "Finance: IT email performed_by not UUID",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "IT procurement complete",
+          "status": "pass",
+          "detail": "HTTP 200: "
+        },
+        {
+          "name": "Status = completed",
+          "status": "pass",
+          "detail": "got: completed"
+        },
+        {
+          "name": "Completion: emails sent",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "No legacy plain-text emails",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "Downstream: licence created on licences page",
+          "status": "pass",
+          "detail": "id=1dc3325a\u2026"
+        },
+        {
+          "name": "Downstream: licence status available/assigned",
+          "status": "pass",
+          "detail": "got: assigned"
+        },
+        {
+          "name": "Downstream: licence linked to correct subscription",
+          "status": "pass",
+          "detail": "correct"
+        },
+        {
+          "name": "Downstream: person assigned to licence",
+          "status": "pass",
+          "detail": "correct"
+        },
+        {
+          "name": "Downstream: payment created",
+          "status": "warn",
+          "detail": "payment not found"
+        },
+        {
+          "name": "Downstream: status history recorded",
+          "status": "pass",
+          "detail": "3 transitions: submitted \u2192 finance_approved \u2192 completed"
+        },
+        {
+          "name": "Downstream: final status is completed",
+          "status": "pass",
+          "detail": "statuses: ['submitted', 'finance_approved', 'completed']"
+        },
+        {
+          "name": "Downstream: audit log entries written",
+          "status": "pass",
+          "detail": "2 entries"
+        }
+      ],
+      "failures": [],
+      "mode": null,
+      "elapsed_ms": 40560
+    },
+    {
+      "name": "renewal",
+      "overall": "pass",
+      "status": null,
+      "reason": null,
+      "summary": {
+        "total": 25,
+        "passed": 24,
+        "failed": 0,
+        "warned": 1,
+        "skipped": 0,
+        "overall": "pass"
+      },
+      "checks": [
+        {
+          "name": "Workflow submission",
+          "status": "pass",
+          "detail": "HTTP 201"
+        },
+        {
+          "name": "Workflow ID returned",
+          "status": "pass",
+          "detail": "c6005b52-b9f5-49c7-9b1e-b8dcd9355c69"
+        },
+        {
+          "name": "Workflow type = renewal_request",
+          "status": "pass",
+          "detail": "got: renewal_request"
+        },
+        {
+          "name": "Initial status = submitted",
+          "status": "pass",
+          "detail": "got: submitted"
+        },
+        {
+          "name": "No line manager step",
+          "status": "pass",
+          "detail": "renewal skips LM by design"
+        },
+        {
+          "name": "Submit: finance action-required email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Submit: IT confirmation email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Submit: subject contains #ID",
+          "status": "pass",
+          "detail": "[Derisk360] Request Submitted \u2013 Diag Renewal Request Test #C6005B52"
+        },
+        {
+          "name": "Finance budget validation",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Status = finance_approved",
+          "status": "pass",
+          "detail": "got: finance_approved"
+        },
+        {
+          "name": "Finance: IT procurement email",
+          "status": "pass",
+          "detail": "2 found"
+        },
+        {
+          "name": "Finance: finance confirmation email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Finance: IT email has MESSAGE section",
+          "status": "pass",
+          "detail": "present"
+        },
+        {
+          "name": "Finance: IT email performed_by not UUID",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "IT procurement complete",
+          "status": "pass",
+          "detail": "HTTP 200: "
+        },
+        {
+          "name": "Status = completed",
+          "status": "pass",
+          "detail": "got: completed"
+        },
+        {
+          "name": "Completion: emails sent",
+          "status": "pass",
+          "detail": "2 found"
+        },
+        {
+          "name": "No legacy plain-text emails",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "Subscription record created",
+          "status": "pass",
+          "detail": "id=101d5752"
+        },
+        {
+          "name": "Subscription status is active",
+          "status": "pass",
+          "detail": "got: active"
+        },
+        {
+          "name": "Payment record on payments page",
+          "status": "pass",
+          "detail": "amount=600.00"
+        },
+        {
+          "name": "Payment linked to budget",
+          "status": "warn",
+          "detail": "no budget_id"
+        },
+        {
+          "name": "Audit log entries written",
+          "status": "pass",
+          "detail": "4 entries"
+        },
+        {
+          "name": "Status history recorded",
+          "status": "pass",
+          "detail": "3 transitions: submitted \u2192 finance_approved \u2192 completed"
+        },
+        {
+          "name": "Final status in history is completed",
+          "status": "pass",
+          "detail": "statuses: ['submitted', 'finance_approved', 'completed']"
+        }
+      ],
+      "failures": [],
+      "mode": null,
+      "elapsed_ms": 40698
+    },
+    {
+      "name": "master-admin",
+      "overall": "pass",
+      "status": null,
+      "reason": null,
+      "summary": {
+        "total": 31,
+        "passed": 31,
+        "failed": 0,
+        "warned": 0,
+        "skipped": 0,
+        "overall": "pass"
+      },
+      "checks": [
+        {
+          "name": "Setup: master admin user found",
+          "status": "pass",
+          "detail": "deriskmaster@outlook.com"
+        },
+        {
+          "name": "Direct add: POST /subscriptions returns 201",
+          "status": "pass",
+          "detail": "HTTP 201: "
+        },
+        {
+          "name": "Direct add: subscription in DB",
+          "status": "pass",
+          "detail": "f071d4ba-aded-4913-86e6-b4fedae68c3d"
+        },
+        {
+          "name": "Direct add: subscription accessible via GET",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Direct add: subscription audit log",
+          "status": "pass",
+          "detail": "1 entries"
+        },
+        {
+          "name": "Direct add: POST /licences returns 201",
+          "status": "pass",
+          "detail": "HTTP 201: "
+        },
+        {
+          "name": "Direct add: licence in DB",
+          "status": "pass",
+          "detail": "e7033285-a142-44da-96ed-be118ebff3bb"
+        },
+        {
+          "name": "Direct add: licence linked to subscription",
+          "status": "pass",
+          "detail": "got: f071d4ba-aded-4913-86e6-b4fedae68c3d"
+        },
+        {
+          "name": "Direct add: licence audit log",
+          "status": "pass",
+          "detail": "1 entries"
+        },
+        {
+          "name": "Workflow: submission",
+          "status": "pass",
+          "detail": "HTTP 201: "
+        },
+        {
+          "name": "Workflow: ID returned",
+          "status": "pass",
+          "detail": "50d31e06-0a31-4f64-8464-dd134575aa56"
+        },
+        {
+          "name": "Workflow: type = new_subscription_request",
+          "status": "pass",
+          "detail": "got: new_subscription_request"
+        },
+        {
+          "name": "Workflow: status = submitted",
+          "status": "pass",
+          "detail": "got: submitted"
+        },
+        {
+          "name": "Workflow: submit emails sent",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Workflow: master admin approves",
+          "status": "pass",
+          "detail": "HTTP 200: "
+        },
+        {
+          "name": "Workflow: status = master_approved",
+          "status": "pass",
+          "detail": "got: master_approved"
+        },
+        {
+          "name": "Workflow: approval emails sent",
+          "status": "pass",
+          "detail": "2 found"
+        },
+        {
+          "name": "Workflow: finance validates",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Workflow: status = finance_approved",
+          "status": "pass",
+          "detail": "got: finance_approved"
+        },
+        {
+          "name": "Workflow: finance confirmation email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Workflow: IT completes",
+          "status": "pass",
+          "detail": "HTTP 200: "
+        },
+        {
+          "name": "Workflow: status = completed",
+          "status": "pass",
+          "detail": "got: completed"
+        },
+        {
+          "name": "Workflow: completion emails sent",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Workflow: no legacy plain-text emails",
+          "status": "pass",
+          "detail": "clean"
+        },
+        {
+          "name": "Subscription record created",
+          "status": "pass",
+          "detail": "id=f6db775e"
+        },
+        {
+          "name": "Subscription status is active",
+          "status": "pass",
+          "detail": "got: active"
+        },
+        {
+          "name": "Payment record on payments page",
+          "status": "pass",
+          "detail": "amount=800.00"
+        },
+        {
+          "name": "Payment linked to budget",
+          "status": "pass",
+          "detail": "linked"
+        },
+        {
+          "name": "Audit log entries written",
+          "status": "pass",
+          "detail": "5 entries"
+        },
+        {
+          "name": "Status history recorded",
+          "status": "pass",
+          "detail": "4 transitions: submitted \u2192 master_approved \u2192 finance_approved \u2192 completed"
+        },
+        {
+          "name": "Final status in history is completed",
+          "status": "pass",
+          "detail": "statuses: ['submitted', 'master_approved', 'finance_approved', 'completed']"
+        }
+      ],
+      "failures": [],
+      "mode": null,
+      "elapsed_ms": 15762
+    },
+    {
+      "name": "hr-onboarding",
+      "overall": "fail",
+      "status": null,
+      "reason": null,
+      "summary": {
+        "total": 12,
+        "passed": 11,
+        "failed": 1,
+        "warned": 0,
+        "skipped": 9,
+        "overall": "fail"
+      },
+      "checks": [
+        {
+          "name": "Setup: employee person record found",
+          "status": "pass",
+          "detail": "Employee One (595534a7...)"
+        },
+        {
+          "name": "Setup: temp subscription created",
+          "status": "pass",
+          "detail": "b23f1a5d-5098-4427-b3f4-834a75f38c19"
+        },
+        {
+          "name": "Workflow submission",
+          "status": "pass",
+          "detail": "HTTP 201"
+        },
+        {
+          "name": "Workflow ID returned",
+          "status": "pass",
+          "detail": "3d47cd2f-fd40-4249-9e5a-d34c55e9ee1d"
+        },
+        {
+          "name": "Workflow type = hr_onboarding_request",
+          "status": "pass",
+          "detail": "got: hr_onboarding_request"
+        },
+        {
+          "name": "Initial status = submitted",
+          "status": "pass",
+          "detail": "got: submitted"
+        },
+        {
+          "name": "No line manager step",
+          "status": "pass",
+          "detail": "hr_onboarding skips LM by design"
+        },
+        {
+          "name": "HR role accepted",
+          "status": "pass",
+          "detail": "hr_admin permitted to submit hr_onboarding_request on licences"
+        },
+        {
+          "name": "Submit: finance action-required email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Submit: HR confirmation email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "Submit: subject contains #ID",
+          "status": "pass",
+          "detail": "[Derisk360] Request Submitted \u2013 Diag HR Onboarding Test Seat #3D47CD2F"
+        },
+        {
+          "name": "Finance budget validation",
+          "status": "fail",
+          "detail": "HTTP 404: {\"detail\":\"Workflow request is not ready for finance validation\"}"
+        },
+        {
+          "name": "Finance: IT procurement email",
+          "status": "skip",
+          "detail": "skipped - finance validation failed"
+        },
+        {
+          "name": "Finance: finance confirmation email",
+          "status": "skip",
+          "detail": "skipped - finance validation failed"
+        },
+        {
+          "name": "Finance: IT email has MESSAGE section",
+          "status": "skip",
+          "detail": "skipped - finance validation failed"
+        },
+        {
+          "name": "Finance: IT email performed_by not UUID",
+          "status": "skip",
+          "detail": "skipped - finance validation failed"
+        },
+        {
+          "name": "IT procurement complete",
+          "status": "skip",
+          "detail": "skipped - finance validation failed"
+        },
+        {
+          "name": "Status = completed",
+          "status": "skip",
+          "detail": "skipped - finance validation failed"
+        },
+        {
+          "name": "Completion: employee welcome email sent",
+          "status": "skip",
+          "detail": "skipped - finance validation failed"
+        },
+        {
+          "name": "Completion: HR confirmation email",
+          "status": "skip",
+          "detail": "skipped - finance validation failed"
+        },
+        {
+          "name": "No legacy plain-text emails",
+          "status": "skip",
+          "detail": "skipped - finance validation failed"
+        }
+      ],
+      "failures": [
+        {
+          "name": "Finance budget validation",
+          "detail": "HTTP 404: {\"detail\":\"Workflow request is not ready for finance validation\"}"
+        }
+      ],
+      "mode": null,
+      "elapsed_ms": 12428
+    },
+    {
+      "name": "url-scraping",
+      "overall": "fail",
+      "status": null,
+      "reason": null,
+      "summary": {
+        "total": 48,
+        "passed": 37,
+        "failed": 1,
+        "warned": 10,
+        "skipped": 14,
+        "overall": "fail"
+      },
+      "checks": [
+        {
+          "name": "Vendor catalogue: entries with a pricing URL",
+          "status": "fail",
+          "detail": "13 entries found"
+        },
+        {
+          "name": "URL accessible: https://www.adobe.com/acrobat/pricing.html",
+          "status": "pass",
+          "detail": "URL valid - opens in browser. Vendor blocks automated requests (IT admin can still use the link) - Adobe - Adobe Acrobat Pro"
+        },
+        {
+          "name": "Response time: https://www.adobe.com/acrobat/pricing.html",
+          "status": "skip",
+          "detail": "skipped - vendor blocks server requests (browser access works)"
+        },
+        {
+          "name": "Pricing content: https://www.adobe.com/acrobat/pricing.html",
+          "status": "skip",
+          "detail": "skipped - vendor blocks server requests (browser access works)"
+        },
+        {
+          "name": "Vendor name on page: https://www.adobe.com/acrobat/pricing.html",
+          "status": "skip",
+          "detail": "skipped - vendor blocks server requests (browser access works)"
+        },
+        {
+          "name": "Price match: Adobe Acrobat Pro (Adobe)",
+          "status": "skip",
+          "detail": "skipped - vendor blocks server requests (verify price manually)"
+        },
+        {
+          "name": "URL accessible: https://www.adobe.com/creativecloud/plans.html",
+          "status": "pass",
+          "detail": "URL valid - opens in browser. Vendor blocks automated requests (IT admin can still use the link) - Adobe - Adobe Creative Cloud Pro, Adobe - Adobe Photoshop"
+        },
+        {
+          "name": "Response time: https://www.adobe.com/creativecloud/plans.html",
+          "status": "skip",
+          "detail": "skipped - vendor blocks server requests (browser access works)"
+        },
+        {
+          "name": "Pricing content: https://www.adobe.com/creativecloud/plans.html",
+          "status": "skip",
+          "detail": "skipped - vendor blocks server requests (browser access works)"
+        },
+        {
+          "name": "Vendor name on page: https://www.adobe.com/creativecloud/plans.html",
+          "status": "skip",
+          "detail": "skipped - vendor blocks server requests (browser access works)"
+        },
+        {
+          "name": "Price match: Adobe Creative Cloud Pro (Adobe)",
+          "status": "skip",
+          "detail": "skipped - vendor blocks server requests (verify price manually)"
+        },
+        {
+          "name": "Price match: Adobe Photoshop (Adobe)",
+          "status": "skip",
+          "detail": "skipped - vendor blocks server requests (verify price manually)"
+        },
+        {
+          "name": "Response time: https://claude.com/pricing",
+          "status": "pass",
+          "detail": "0.43s"
+        },
+        {
+          "name": "Pricing content: https://claude.com/pricing",
+          "status": "pass",
+          "detail": "found: price, pricing, per month, annually, billed"
+        },
+        {
+          "name": "Vendor name on page: https://claude.com/pricing",
+          "status": "pass",
+          "detail": "found"
+        },
+        {
+          "name": "Price match: Claude Max (Anthropic)",
+          "status": "pass",
+          "detail": "USD100.0 vs page USD100.0 (within 0.0%)"
+        },
+        {
+          "name": "Response time: https://www.anthropic.com/pricing",
+          "status": "pass",
+          "detail": "0.85s"
+        },
+        {
+          "name": "Pricing content: https://www.anthropic.com/pricing",
+          "status": "pass",
+          "detail": "found: price, pricing, per month, annually, billed"
+        },
+        {
+          "name": "Vendor name on page: https://www.anthropic.com/pricing",
+          "status": "pass",
+          "detail": "found"
+        },
+        {
+          "name": "Price match: Claude Pro (Anthropic)",
+          "status": "pass",
+          "detail": "USD20.0 vs page USD20.0 (within 0.0%)"
+        },
+        {
+          "name": "Response time: https://www.apple.com/apple-tv/",
+          "status": "pass",
+          "detail": "1.13s"
+        },
+        {
+          "name": "Pricing content: https://www.apple.com/apple-tv/",
+          "status": "pass",
+          "detail": "found: price, per month, plan, subscribe, buy"
+        },
+        {
+          "name": "Vendor name on page: https://www.apple.com/apple-tv/",
+          "status": "pass",
+          "detail": "found"
+        },
+        {
+          "name": "Price match: Apple TV subscription (Apple)",
+          "status": "pass",
+          "detail": "USD12.99 vs page USD12.99 (within 0.0%)"
+        },
+        {
+          "name": "Response time: https://www.figma.com/pricing/",
+          "status": "pass",
+          "detail": "1.59s"
+        },
+        {
+          "name": "Pricing content: https://www.figma.com/pricing/",
+          "status": "pass",
+          "detail": "found: price, pricing, annually, billed, plan"
+        },
+        {
+          "name": "Vendor name on page: https://www.figma.com/pricing/",
+          "status": "pass",
+          "detail": "found"
+        },
+        {
+          "name": "Price match: Figma (Figma)",
+          "status": "pass",
+          "detail": "USD15.0 vs page USD16.0 (within 6.7%)"
+        },
+        {
+          "name": "Price match: Figma Enterprise (Figma)",
+          "status": "pass",
+          "detail": "USD90.0 vs page USD90.0 (within 0.0%)"
+        },
+        {
+          "name": "Price match: Figma Organization (Figma)",
+          "status": "pass",
+          "detail": "USD55.0 vs page USD55.0 (within 0.0%)"
+        },
+        {
+          "name": "Response time: https://www.microsoft.com/en-in/microsoft-365/business/micro...",
+          "status": "pass",
+          "detail": "0.41s"
+        },
+        {
+          "name": "Pricing content: https://www.microsoft.com/en-in/microsoft-365/business/micro...",
+          "status": "pass",
+          "detail": "found: buy, /mo, eur, $"
+        },
+        {
+          "name": "Vendor name on page: https://www.microsoft.com/en-in/microsoft-365/business/micro...",
+          "status": "pass",
+          "detail": "found"
+        },
+        {
+          "name": "Price match: Microsoft 365 Business Basic (Microsoft)",
+          "status": "warn",
+          "detail": "no prices found on page (likely JS-rendered)"
+        },
+        {
+          "name": "Response time: https://www.microsoft.com/en-in/microsoft-365/business/micro...",
+          "status": "pass",
+          "detail": "0.3s"
+        },
+        {
+          "name": "Pricing content: https://www.microsoft.com/en-in/microsoft-365/business/micro...",
+          "status": "pass",
+          "detail": "found: buy, /mo, eur, $"
+        },
+        {
+          "name": "Vendor name on page: https://www.microsoft.com/en-in/microsoft-365/business/micro...",
+          "status": "pass",
+          "detail": "found"
+        },
+        {
+          "name": "Price match: Microsoft 365 Business Standard (Microsoft)",
+          "status": "warn",
+          "detail": "no prices found on page (likely JS-rendered)"
+        },
+        {
+          "name": "Response time: https://www.microsoft.com/en-us/microsoft-teams/microsoft-te...",
+          "status": "pass",
+          "detail": "0.26s"
+        },
+        {
+          "name": "Pricing content: https://www.microsoft.com/en-us/microsoft-teams/microsoft-te...",
+          "status": "pass",
+          "detail": "found: buy, /mo, eur, $"
+        },
+        {
+          "name": "Vendor name on page: https://www.microsoft.com/en-us/microsoft-teams/microsoft-te...",
+          "status": "pass",
+          "detail": "found"
+        },
+        {
+          "name": "Price match: Microsoft Teams Essentials (Microsoft)",
+          "status": "warn",
+          "detail": "no prices found on page (likely JS-rendered)"
+        },
+        {
+          "name": "Response time: https://slack.com/pricing",
+          "status": "pass",
+          "detail": "1.09s"
+        },
+        {
+          "name": "Pricing content: https://slack.com/pricing",
+          "status": "pass",
+          "detail": "found: price, pricing, annually, billed, plan"
+        },
+        {
+          "name": "Vendor name on page: https://slack.com/pricing",
+          "status": "pass",
+          "detail": "found"
+        },
+        {
+          "name": "Price match: Slack Pro (Slack Technologies)",
+          "status": "warn",
+          "detail": "no prices found on page (likely JS-rendered)"
+        },
+        {
+          "name": "Overall: all pricing URLs reachable",
+          "status": "pass",
+          "detail": "10/10 URLs accessible (browser-blocked vendors counted as accessible)"
+        },
+        {
+          "name": "Overall: no slow URLs",
+          "status": "pass",
+          "detail": "all within 5.0s threshold"
+        },
+        {
+          "name": "Overall: pricing content detected",
+          "status": "warn",
+          "detail": "8/10 accessible URLs have pricing keywords"
+        },
+        {
+          "name": "Subscriptions: total active",
+          "status": "pass",
+          "detail": "9 active subscriptions"
+        },
+        {
+          "name": "Subscriptions: all have a vendor linked",
+          "status": "warn",
+          "detail": "7/9 have a vendor"
+        },
+        {
+          "name": "Subscriptions: all have a pricing URL",
+          "status": "warn",
+          "detail": "6/9 have a catalogue URL"
+        },
+        {
+          "name": "Missing URL: Slack Enterprise Grid",
+          "status": "warn",
+          "detail": "vendor=Basecamp LLC - add a pricing URL in Vendors"
+        },
+        {
+          "name": "Missing URL: Figma",
+          "status": "warn",
+          "detail": "vendor=no vendor - add a pricing URL in Vendors"
+        },
+        {
+          "name": "Missing URL: Microsoft Teams Essentials",
+          "status": "warn",
+          "detail": "vendor=no vendor - add a pricing URL in Vendors"
+        },
+        {
+          "name": "Price check: Adobe Acrobat Pro",
+          "status": "skip",
+          "detail": "currencies differ (AED vs USD) - skipping comparison"
+        },
+        {
+          "name": "Price check: Adobe Premier Pro",
+          "status": "skip",
+          "detail": "currencies differ (INR vs AED) - skipping comparison"
+        },
+        {
+          "name": "Price check: Claude Pro",
+          "status": "skip",
+          "detail": "currencies differ (AED vs USD) - skipping comparison"
+        },
+        {
+          "name": "Price check: Claude Pro",
+          "status": "skip",
+          "detail": "currencies differ (AED vs USD) - skipping comparison"
+        },
+        {
+          "name": "Price sanity: Microsoft Teams",
+          "status": "pass",
+          "detail": "AED 10000.0 (monthly) vs catalogue 4.47/unit - ratio 26845.6x"
+        },
+        {
+          "name": "Price check: Slack Pro",
+          "status": "skip",
+          "detail": "currencies differ (AED vs USD) - skipping comparison"
+        },
+        {
+          "name": "Price sanity: overall",
+          "status": "pass",
+          "detail": "1/1 subscriptions within expected range"
+        }
+      ],
+      "failures": [
+        {
+          "name": "Vendor catalogue: entries with a pricing URL",
+          "detail": "13 entries found"
+        }
+      ],
+      "mode": null,
+      "elapsed_ms": 42796
+    },
+    {
+      "name": "renewal-alerts",
+      "overall": "fail",
+      "status": null,
+      "reason": null,
+      "summary": {
+        "total": 12,
+        "passed": 9,
+        "failed": 3,
+        "warned": 0,
+        "skipped": 0,
+        "overall": "fail"
+      },
+      "checks": [
+        {
+          "name": "Scheduler: renewal alerts job configured",
+          "status": "pass",
+          "detail": "runs daily at 07:00 UTC"
+        },
+        {
+          "name": "Test subscription created",
+          "status": "pass",
+          "detail": "id=d4ae5591-d3f4-43d2-b6df-be8f579b5d82, renewal=2026-08-22"
+        },
+        {
+          "name": "Alert query detects subscription",
+          "status": "pass",
+          "detail": "days_until_renewal=30"
+        },
+        {
+          "name": "Alert recipients found",
+          "status": "pass",
+          "detail": "4 recipient(s): deriskfinance@outlook.com, deriskit@outlook.com, deriskmaster@outlook.com, sxb230213@utdallas.edu"
+        },
+        {
+          "name": "run_renewal_alerts executed",
+          "status": "pass",
+          "detail": "sent=0"
+        },
+        {
+          "name": "Test subscription included in alerts",
+          "status": "fail",
+          "detail": "not found in sent batch"
+        },
+        {
+          "name": "At least one alert email sent",
+          "status": "fail",
+          "detail": "0 alert(s) sent"
+        },
+        {
+          "name": "Renewal alert email logged",
+          "status": "fail",
+          "detail": "no email_logs entry found"
+        },
+        {
+          "name": "Manual trigger endpoint /renewal-alerts/run",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Manual trigger returns sent count",
+          "status": "pass",
+          "detail": "{'status': 'ok', 'sent': 0, 'subscriptions': []}"
+        },
+        {
+          "name": "Alert query covers 60-day threshold",
+          "status": "pass",
+          "detail": "any subscription due in 60 days would be included"
+        },
+        {
+          "name": "Alert query covers 90-day threshold",
+          "status": "pass",
+          "detail": "any subscription due in 90 days would be included"
+        }
+      ],
+      "failures": [
+        {
+          "name": "Test subscription included in alerts",
+          "detail": "not found in sent batch"
+        },
+        {
+          "name": "At least one alert email sent",
+          "detail": "0 alert(s) sent"
+        },
+        {
+          "name": "Renewal alert email logged",
+          "detail": "no email_logs entry found"
+        }
+      ],
+      "mode": null,
+      "elapsed_ms": 18768
+    },
+    {
+      "name": "offboarding",
+      "overall": "pass",
+      "status": null,
+      "reason": null,
+      "summary": {
+        "total": 28,
+        "passed": 28,
+        "failed": 0,
+        "warned": 0,
+        "skipped": 0,
+        "overall": "pass"
+      },
+      "checks": [
+        {
+          "name": "Setup: employee person record created",
+          "status": "pass",
+          "detail": "diag.offboard.5b43af57@derisk360.test (57981448...)"
+        },
+        {
+          "name": "Setup: portal login (app_user) created",
+          "status": "pass",
+          "detail": "3cc9c26b..."
+        },
+        {
+          "name": "Setup: employee role assigned",
+          "status": "pass",
+          "detail": "997afbd2..."
+        },
+        {
+          "name": "Setup: 2 licences assigned to employee",
+          "status": "pass",
+          "detail": "b9aa88fd..., 2a699852..."
+        },
+        {
+          "name": "Workflow submission (HR)",
+          "status": "pass",
+          "detail": "HTTP 201"
+        },
+        {
+          "name": "Workflow ID returned",
+          "status": "pass",
+          "detail": "007881ef-93f5-4a9f-a1be-6ff99960722b"
+        },
+        {
+          "name": "Workflow type = employee_offboarding",
+          "status": "pass",
+          "detail": "got: employee_offboarding"
+        },
+        {
+          "name": "Initial status = submitted",
+          "status": "pass",
+          "detail": "got: submitted"
+        },
+        {
+          "name": "No line manager step",
+          "status": "pass",
+          "detail": "offboarding skips LM by design"
+        },
+        {
+          "name": "Submit: email sent to IT/master",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "IT confirms licences checked",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Status = it_confirmed",
+          "status": "pass",
+          "detail": "got: it_confirmed"
+        },
+        {
+          "name": "IT confirm: actor confirmation email",
+          "status": "pass",
+          "detail": "1 found"
+        },
+        {
+          "name": "IT completes offboarding",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Status = completed",
+          "status": "pass",
+          "detail": "got: completed"
+        },
+        {
+          "name": "Completion: email sent to stakeholders",
+          "status": "pass",
+          "detail": "2 found"
+        },
+        {
+          "name": "Completion: subject contains workflow ID",
+          "status": "pass",
+          "detail": "looking for #007881EF in subjects"
+        },
+        {
+          "name": "Downstream: employee (people) set to inactive",
+          "status": "pass",
+          "detail": "got: inactive"
+        },
+        {
+          "name": "Downstream: portal login (app_user) set to inactive",
+          "status": "pass",
+          "detail": "got: inactive"
+        },
+        {
+          "name": "Downstream: user role revoked",
+          "status": "pass",
+          "detail": "revoked_at = 2026-07-23 04:42:34.382184+00:00"
+        },
+        {
+          "name": "Downstream: licence 1 revoked",
+          "status": "pass",
+          "detail": "got: revoked"
+        },
+        {
+          "name": "Downstream: licence 2 revoked",
+          "status": "pass",
+          "detail": "got: revoked"
+        },
+        {
+          "name": "Downstream: no active licences remain",
+          "status": "pass",
+          "detail": "0 active licence(s) remaining"
+        },
+        {
+          "name": "Downstream: workflow completed_at set",
+          "status": "pass",
+          "detail": "completed_at = 2026-07-23 04:42:34.382184+00:00"
+        },
+        {
+          "name": "Downstream: workflow completed_by set",
+          "status": "pass",
+          "detail": "completed_by = ce52da36-aac6-4f22-b4ad-4ddaa56252b7"
+        },
+        {
+          "name": "Downstream: status history has 3 transitions",
+          "status": "pass",
+          "detail": "3 transitions: submitted -> it_confirmed -> completed"
+        },
+        {
+          "name": "Downstream: status order is submitted \u2192 it_confirmed \u2192 completed",
+          "status": "pass",
+          "detail": "got: submitted \u2192 it_confirmed \u2192 completed"
+        },
+        {
+          "name": "Downstream: audit log entries written",
+          "status": "pass",
+          "detail": "3 entries"
+        }
+      ],
+      "failures": [],
+      "mode": null,
+      "elapsed_ms": 5365
+    },
+    {
+      "name": "full-lifecycle",
+      "overall": "fail",
+      "status": null,
+      "reason": null,
+      "summary": {
+        "total": 6,
+        "passed": 5,
+        "failed": 1,
+        "warned": 0,
+        "skipped": 8,
+        "overall": "fail"
+      },
+      "checks": [
+        {
+          "name": "Setup: temp subscription created",
+          "status": "pass",
+          "detail": "2bdf7af6-de3b-4053-9f4c-6ed8f26e3c28"
+        },
+        {
+          "name": "Onboard: HR submits request",
+          "status": "pass",
+          "detail": "HTTP 201"
+        },
+        {
+          "name": "Onboard: workflow ID returned",
+          "status": "pass",
+          "detail": "43d54b87-fc91-4a81-9ad8-2936f06cbd29"
+        },
+        {
+          "name": "Onboard: status = submitted",
+          "status": "pass",
+          "detail": "got: submitted"
+        },
+        {
+          "name": "Onboard: submission emails sent",
+          "status": "pass",
+          "detail": "2 emails logged"
+        },
+        {
+          "name": "Onboard: finance approves",
+          "status": "fail",
+          "detail": "HTTP 404: {\"detail\":\"Workflow request is not ready for finance validation\"}"
+        },
+        {
+          "name": "Onboard: status = finance_approved",
+          "status": "skip",
+          "detail": "skipped \u2014 finance failed"
+        },
+        {
+          "name": "Onboard: IT completes",
+          "status": "skip",
+          "detail": "skipped \u2014 finance failed"
+        },
+        {
+          "name": "Onboard: status = completed",
+          "status": "skip",
+          "detail": "skipped \u2014 finance failed"
+        },
+        {
+          "name": "Onboard: employee person record created",
+          "status": "skip",
+          "detail": "skipped \u2014 finance failed"
+        },
+        {
+          "name": "Onboard: portal login created",
+          "status": "skip",
+          "detail": "skipped \u2014 finance failed"
+        },
+        {
+          "name": "Onboard: licence created",
+          "status": "skip",
+          "detail": "skipped \u2014 finance failed"
+        },
+        {
+          "name": "Onboard: licence status = assigned",
+          "status": "skip",
+          "detail": "skipped \u2014 finance failed"
+        },
+        {
+          "name": "Onboard: welcome email sent",
+          "status": "skip",
+          "detail": "skipped \u2014 finance failed"
+        }
+      ],
+      "failures": [
+        {
+          "name": "Onboard: finance approves",
+          "detail": "HTTP 404: {\"detail\":\"Workflow request is not ready for finance validation\"}"
+        }
+      ],
+      "mode": null,
+      "elapsed_ms": 12489
+    },
+    {
+      "name": "slack",
+      "overall": "pass",
+      "status": null,
+      "reason": null,
+      "summary": {
+        "total": 9,
+        "passed": 9,
+        "failed": 0,
+        "warned": 0,
+        "skipped": 0,
+        "overall": "pass"
+      },
+      "checks": [
+        {
+          "name": "SLACK_WEBHOOK_SOFTWARE_REQUESTS configured",
+          "status": "pass",
+          "detail": "https://hooks.slack.com/services/T0BEZ05..."
+        },
+        {
+          "name": "SLACK_BOT_TOKEN configured",
+          "status": "pass",
+          "detail": "xoxb-..."
+        },
+        {
+          "name": "Webhook: channel post delivered",
+          "status": "pass",
+          "detail": "HTTP 200"
+        },
+        {
+          "name": "Bot token: auth.test OK",
+          "status": "pass",
+          "detail": "team=Derisk360 user=slmct"
+        },
+        {
+          "name": "DM: Employee 1 (deriskemployee1@outlook.com)",
+          "status": "pass",
+          "detail": "sent"
+        },
+        {
+          "name": "DM: Line Manager (deriskline@outlook.com)",
+          "status": "pass",
+          "detail": "sent"
+        },
+        {
+          "name": "DM: Finance (deriskfinance@outlook.com)",
+          "status": "pass",
+          "detail": "sent"
+        },
+        {
+          "name": "DM: IT Admin (deriskit@outlook.com)",
+          "status": "pass",
+          "detail": "sent"
+        },
+        {
+          "name": "DM: Master Admin (deriskmaster@outlook.com)",
+          "status": "pass",
+          "detail": "sent"
+        }
+      ],
+      "failures": [],
+      "mode": null,
+      "elapsed_ms": 11307
+    },
+    {
+      "name": "upload-export",
+      "overall": "fail",
+      "status": null,
+      "reason": null,
+      "summary": {
+        "total": 37,
+        "passed": 35,
+        "failed": 2,
+        "warned": 0,
+        "skipped": 0,
+        "overall": "fail"
+      },
+      "checks": [
+        {
+          "name": "Template download: budgets",
+          "status": "pass",
+          "detail": "HTTP 200, 1673 bytes"
+        },
+        {
+          "name": "Template download: licences",
+          "status": "pass",
+          "detail": "HTTP 200, 1645 bytes"
+        },
+        {
+          "name": "Template download: payments",
+          "status": "pass",
+          "detail": "HTTP 200, 1721 bytes"
+        },
+        {
+          "name": "Template download: employees",
+          "status": "pass",
+          "detail": "HTTP 200, 1655 bytes"
+        },
+        {
+          "name": "Template download: subscriptions",
+          "status": "pass",
+          "detail": "HTTP 200, 1743 bytes"
+        },
+        {
+          "name": "Template download: contracts",
+          "status": "pass",
+          "detail": "HTTP 200, 1733 bytes"
+        },
+        {
+          "name": "Template download: vendors",
+          "status": "pass",
+          "detail": "HTTP 200, 1684 bytes"
+        },
+        {
+          "name": "Bulk upload: budgets",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=2/2, skipped=0"
+        },
+        {
+          "name": "Bulk upload rows in DB: budgets",
+          "status": "pass",
+          "detail": "found 2/2 rows in DB"
+        },
+        {
+          "name": "Bulk upload: licences",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=2/2, skipped=0"
+        },
+        {
+          "name": "Bulk upload rows in DB: licences",
+          "status": "pass",
+          "detail": "found 2/2 rows in DB"
+        },
+        {
+          "name": "Bulk upload: payments",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=2/2, skipped=0"
+        },
+        {
+          "name": "Bulk upload rows in DB: payments",
+          "status": "pass",
+          "detail": "found 2/2 rows in DB"
+        },
+        {
+          "name": "Bulk upload: employees",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=2/2, skipped=0"
+        },
+        {
+          "name": "Bulk upload rows in DB: employees",
+          "status": "pass",
+          "detail": "found 2/2 rows in DB"
+        },
+        {
+          "name": "Bulk upload: subscriptions",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=2/2, skipped=0"
+        },
+        {
+          "name": "Bulk upload rows in DB: subscriptions",
+          "status": "pass",
+          "detail": "found 2/2 rows in DB"
+        },
+        {
+          "name": "Bulk upload: contracts",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=2/2, skipped=0"
+        },
+        {
+          "name": "Bulk upload rows in DB: contracts",
+          "status": "pass",
+          "detail": "found 2/2 rows in DB"
+        },
+        {
+          "name": "Bulk upload: vendors",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=2/2, skipped=0"
+        },
+        {
+          "name": "Bulk upload rows in DB: vendors",
+          "status": "pass",
+          "detail": "found 2/2 rows in DB"
+        },
+        {
+          "name": "Duplicate check: budgets",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=0, skipped=['DiagDept Alpha']"
+        },
+        {
+          "name": "Duplicate check: licences",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=0, skipped=['Diag Licence Alpha']"
+        },
+        {
+          "name": "Duplicate check: payments",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=0, skipped=['Diag Payment Alpha']"
+        },
+        {
+          "name": "Duplicate check: employees",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=0, skipped=['Diag Employee Alpha']"
+        },
+        {
+          "name": "Duplicate check: subscriptions",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=0, skipped=['Diag Sub Alpha']"
+        },
+        {
+          "name": "Duplicate check: contracts",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=0, skipped=['Diag Contract Alpha']"
+        },
+        {
+          "name": "Duplicate check: vendors",
+          "status": "pass",
+          "detail": "HTTP 201, inserted=0, skipped=['Diag Vendor Alpha']"
+        },
+        {
+          "name": "Export: vendors",
+          "status": "fail",
+          "detail": "HTTP 404, 49 bytes"
+        },
+        {
+          "name": "Export: subscriptions",
+          "status": "pass",
+          "detail": "HTTP 200, 2618 bytes"
+        },
+        {
+          "name": "Export: licences",
+          "status": "pass",
+          "detail": "HTTP 200, 2501 bytes"
+        },
+        {
+          "name": "Export: budgets",
+          "status": "pass",
+          "detail": "HTTP 200, 2367 bytes"
+        },
+        {
+          "name": "Export: payments",
+          "status": "pass",
+          "detail": "HTTP 200, 5691 bytes"
+        },
+        {
+          "name": "Export: employees",
+          "status": "pass",
+          "detail": "HTTP 200, 2397 bytes"
+        },
+        {
+          "name": "Export: contracts",
+          "status": "pass",
+          "detail": "HTTP 200, 2473 bytes"
+        },
+        {
+          "name": "Export single record: vendors",
+          "status": "fail",
+          "detail": "HTTP 404, 49 bytes"
+        },
+        {
+          "name": "Cleanup: all test records deleted",
+          "status": "pass",
+          "detail": "all diag rows removed"
+        }
+      ],
+      "failures": [
+        {
+          "name": "Export: vendors",
+          "detail": "HTTP 404, 49 bytes"
+        },
+        {
+          "name": "Export single record: vendors",
+          "detail": "HTTP 404, 49 bytes"
+        }
+      ],
+      "mode": null,
+      "elapsed_ms": 3384
+    },
+    {
+      "name": "operator-eval",
+      "overall": "fail",
+      "status": "ok",
+      "reason": null,
+      "summary": {
+        "total": 35,
+        "passed": 34,
+        "failed": 1,
+        "warned": 0,
+        "skipped": 0,
+        "overall": "fail"
+      },
+      "checks": [
+        {
+          "name": "Seed: eval organisation created",
+          "status": "pass",
+          "detail": "org_id=1fe978cb-4f8f-4e30-af7e-b4e4cf1c69d9"
+        },
+        {
+          "name": "Write tool: create_budget succeeds for finance",
+          "status": "pass",
+          "detail": "{'budget': {'id': '3f20186c-ee1e-41dc-956e-a22413141eb3', 'organisation_id': '1fe978cb-4f8f-4e30-af7e-b4e4cf1c69d9', 'fiscal_year': 2027, 'department': 'Marketin', 'allocated_amount': 30000.0, 'curren"
+        },
+        {
+          "name": "SQL: Marketing 2027 budget exists with exact fields",
+          "status": "fail",
+          "detail": "{'allocated_amount': Decimal('30000.00'), 'department': 'Marketin', 'fiscal_year': 2027, 'currency_code': 'AED'}"
+        },
+        {
+          "name": "Audit: create_budget logged source ai_operator",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "name": "Write tool: assign_licence to OpEval Person A",
+          "status": "pass",
+          "detail": "{'licence': {'id': '8464c403-7985-4037-8182-3ffe80ec73c2', 'organisation_id': '1fe978cb-4f8f-4e30-af7e-b4e4cf1c69d9', 'subscription_id': 'eb52b036-4552-4efb-9514-c00bc35fc684', 'assigned_to_person_id'"
+        },
+        {
+          "name": "SQL: spare Slack licence assigned to OpEval Person A",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "name": "RBAC: employee denied create_budget",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "name": "Validation: unknown write tool rejected",
+          "status": "pass",
+          "detail": "step 1: tool 'delete_everything' is not in the actor's write toolset"
+        },
+        {
+          "name": "Validation: unsupported requested_module rejected",
+          "status": "pass",
+          "detail": "step 1: payload.vendor_id must be a UUID from a read-tool lookup, got 'Apple123'; step 1: requested_module 'subscription' is unsupported (did you mean 'subscriptions'?); use one of: budgets, contracts, employees, licences, organisations, payments, subscriptions, vendors"
+        },
+        {
+          "name": "Validation: non-UUID vendor_id rejected",
+          "status": "pass",
+          "detail": "step 1: vendor_id must be a UUID from a read-tool lookup, got 'Apple123'"
+        },
+        {
+          "name": "Validation: direct create rejects submit_workflow_request for subscriptions",
+          "status": "pass",
+          "detail": "step 1: instruction requests direct create \u2014 use create_subscription, not submit_workflow_request"
+        },
+        {
+          "name": "Validation: budget allocation rejects submit_workflow_request for master_admin",
+          "status": "pass",
+          "detail": "step 1: budgets is not submitted via workflow \u2014 budget/payment allocation is a Finance-tab action (create_budget for finance, auditor, or master_admin only); other roles cannot create budgets and there is no budget workflow; step 1: budget allocation belongs on the Finance tab \u2014 department is a label on the budget row, not a new org entity \u2014 use create_budget, not submit_workflow_request"
+        },
+        {
+          "name": "Normalizer: budget workflow plan becomes create_budget",
+          "status": "pass",
+          "detail": "[{'tool': 'create_budget', 'params': {'fiscal_year': 2026, 'department': 'iphone', 'allocated_amount': 30000, 'currency_code': 'AED'}, 'description': 'Submit budget workflow'}]"
+        },
+        {
+          "name": "Permission: IT Admin budget create refused with Finance warning",
+          "status": "pass",
+          "detail": "['Changing department budgets requires Finance, Auditor, or Master Admin access. Your role cannot create or update budgets, and SLMCT has no budget allocation workflow \u2014 ask your Finance team to adjust this on the Budgets tab.']"
+        },
+        {
+          "name": "Resolver: IT Admin figma assign builds licence workflow step",
+          "status": "pass",
+          "detail": "[{'tool': 'submit_workflow_request', 'params': {'workflow_type': 'license_assignment_request', 'requested_module': 'licences', 'payload': {'assigned_to_person_id': 'd3278d68-1ea6-4a76-bb6d-db95c6996085', 'licence_name': 'OpEval Figma Seat',"
+        },
+        {
+          "name": "Resolver: licence workflow uses assigned_to_person_id + licence_name",
+          "status": "pass",
+          "detail": "{'assigned_to_person_id': 'd3278d68-1ea6-4a76-bb6d-db95c6996085', 'licence_name': 'OpEval Figma Seat', 'department': 'Engineering', 'subscription_id': '4c3b3630-2036-4285-a529-f9cf2845134c', 'amount': 10000.0, 'currency_code': 'AED'}"
+        },
+        {
+          "name": "Instruction merge: structured details included",
+          "status": "pass",
+          "detail": "Create Apple Plus subscription directly\n\nStructured details:\nvendor: Apple\namount: 99 AED\ndepartment: Operations\n\nAnswer to \"What vendor?\": Apple"
+        },
+        {
+          "name": "Field guide: vendor entity includes surfaces_in",
+          "status": "pass",
+          "detail": "['Subscription and workflow vendor picker', 'Spend summaries grouped by vendor', 'Vendor catalogue (linked by vendor_id)']"
+        },
+        {
+          "name": "Validation: multi-step plan with $step refs passes",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "name": "Validation: forward step reference rejected",
+          "status": "pass",
+          "detail": "step 1: vendor_id step reference must point to an earlier step, got '$step:1:vendor.id'"
+        },
+        {
+          "name": "Execute: vendor + catalogue step-ref plan completes",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "name": "SQL: catalogue item exists after step-ref execute",
+          "status": "pass",
+          "detail": "{'name': 'OpEval Plan', 'price': Decimal('49.00')}"
+        },
+        {
+          "name": "Autofill: resolves $question price placeholders",
+          "status": "pass",
+          "detail": "{'vendor_id': '1fe978cb-4f8f-4e30-af7e-b4e4cf1c69d9', 'name': 'OpEval Autofill Product', 'price': 12.5, 'scrape_url': 'https://example.com/pricing', 'currency_code': 'USD'}"
+        },
+        {
+          "name": "Autofill: drops lookup-resolvable questions",
+          "status": "pass",
+          "detail": "[]"
+        },
+        {
+          "name": "Execute: create vendor plan completes",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "name": "SQL: OpEval Vendor Z exists after execute",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "name": "Verifier: sabotaged step reports failure not silent success",
+          "status": "pass",
+          "detail": "[{\"index\": 0, \"tool\": \"create_budget\", \"description\": \"Create sabotage test budget\", \"status\": \"failed\", \"result\": {\"budget\": {\"id\": \"0f1e9f54-600d-4135-8094-81db952c67cf\", \"organisation_id\": \"1fe978cb-4f8f-4e30-af7e-b4e4cf1c69d9\", \"fiscal_year\": 2028, \"department\": \"SabotageDept\", \"allocated_amount"
+        },
+        {
+          "name": "Execute: plan older than 10 minutes rejected",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "name": "Execute: plan with questions cannot run",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "name": "Planner: missing-detail instruction returns questions",
+          "status": "pass",
+          "detail": "questions=['What is the fiscal year for this budget?', 'What is the allocated amount for the Legal department budget?'], steps=0"
+        },
+        {
+          "name": "Planner: employee approve instruction refused",
+          "status": "pass",
+          "detail": "steps=0, warnings=[\"Approving workflow requests is outside the operator's permissions. Only users with appropriate roles (e.g., Finance, IT Admin, Master Admin) can approve workflow requests within the SLMCT platform.\"]"
+        },
+        {
+          "name": "Planner: finance budget instruction yields create_budget step",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "name": "Execute: LLM-planned budget completes",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "name": "SQL: Operations 2029 budget exists after LLM plan",
+          "status": "pass",
+          "detail": ""
+        },
+        {
+          "name": "Planner: direct subscription prefers create_subscription/create_vendor",
+          "status": "pass",
+          "detail": "tools=['create_vendor', 'create_subscription'], questions=[]"
+        },
+        {
+          "name": "Teardown: eval organisation removed",
+          "status": "pass",
+          "detail": ""
+        }
+      ],
+      "failures": [
+        {
+          "name": "SQL: Marketing 2027 budget exists with exact fields",
+          "detail": "{'allocated_amount': Decimal('30000.00'), 'department': 'Marketin', 'fiscal_year': 2027, 'currency_code': 'AED'}"
+        }
+      ],
+      "mode": "operator_eval",
+      "elapsed_ms": 45315
+    }
+  ],
+  "failures": [
+    {
+      "suite": "hr-onboarding",
+      "check": "Finance budget validation",
+      "detail": "HTTP 404: {\"detail\":\"Workflow request is not ready for finance validation\"}",
+      "planted_break_id": "hr-onboarding-finance-gate"
+    },
+    {
+      "suite": "url-scraping",
+      "check": "Vendor catalogue: entries with a pricing URL",
+      "detail": "13 entries found",
+      "planted_break_id": "url-scraping-catalogue"
+    },
+    {
+      "suite": "renewal-alerts",
+      "check": "Test subscription included in alerts",
+      "detail": "not found in sent batch",
+      "planted_break_id": "renewal-alerts-thresholds"
+    },
+    {
+      "suite": "renewal-alerts",
+      "check": "At least one alert email sent",
+      "detail": "0 alert(s) sent",
+      "planted_break_id": "renewal-alerts-thresholds"
+    },
+    {
+      "suite": "renewal-alerts",
+      "check": "Renewal alert email logged",
+      "detail": "no email_logs entry found",
+      "planted_break_id": "renewal-alerts-thresholds"
+    },
+    {
+      "suite": "full-lifecycle",
+      "check": "Onboard: finance approves",
+      "detail": "HTTP 404: {\"detail\":\"Workflow request is not ready for finance validation\"}"
+    },
+    {
+      "suite": "upload-export",
+      "check": "Export: vendors",
+      "detail": "HTTP 404, 49 bytes",
+      "planted_break_id": "upload-export-modules"
+    },
+    {
+      "suite": "upload-export",
+      "check": "Export single record: vendors",
+      "detail": "HTTP 404, 49 bytes",
+      "planted_break_id": "upload-export-modules"
+    },
+    {
+      "suite": "operator-eval",
+      "check": "SQL: Marketing 2027 budget exists with exact fields",
+      "detail": "{'allocated_amount': Decimal('30000.00'), 'department': 'Marketin', 'fiscal_year': 2027, 'currency_code': 'AED'}",
+      "planted_break_id": "operator-eval-budget-dept"
+    }
+  ],
+  "planted_breaks": {
+    "active": true,
+    "planted_at": "2026-07-23T04:36:44.003326+00:00",
+    "count": 5,
+    "detected_count": 5,
+    "missed_count": 0,
+    "not_run_count": 0,
+    "detection_rate": 1.0,
+    "correlations": [
+      {
+        "break_id": "renewal-alerts-thresholds",
+        "suite": "renewal-alerts",
+        "feature": "Renewal alert day thresholds",
+        "path": "api/app/notifications.py",
+        "run_status": "failed_as_expected",
+        "detected": true,
+        "failures": [
+          {
+            "check": "Test subscription included in alerts",
+            "detail": "not found in sent batch"
+          },
+          {
+            "check": "At least one alert email sent",
+            "detail": "0 alert(s) sent"
+          },
+          {
+            "check": "Renewal alert email logged",
+            "detail": "no email_logs entry found"
+          }
+        ]
+      },
+      {
+        "break_id": "upload-export-modules",
+        "suite": "upload-export",
+        "feature": "Bulk export module list",
+        "path": "api/app/main.py",
+        "run_status": "failed_as_expected",
+        "detected": true,
+        "failures": [
+          {
+            "check": "Export: vendors",
+            "detail": "HTTP 404, 49 bytes"
+          },
+          {
+            "check": "Export single record: vendors",
+            "detail": "HTTP 404, 49 bytes"
+          }
+        ]
+      },
+      {
+        "break_id": "url-scraping-catalogue",
+        "suite": "url-scraping",
+        "feature": "Vendor catalogue pricing URL prerequisite",
+        "path": "api/app/main.py",
+        "run_status": "failed_as_expected",
+        "detected": true,
+        "failures": [
+          {
+            "check": "Vendor catalogue: entries with a pricing URL",
+            "detail": "13 entries found"
+          }
+        ]
+      },
+      {
+        "break_id": "hr-onboarding-finance-gate",
+        "suite": "hr-onboarding",
+        "feature": "HR onboarding finance validation from submitted",
+        "path": "api/app/workflow_governance.py",
+        "run_status": "failed_as_expected",
+        "detected": true,
+        "failures": [
+          {
+            "check": "Finance budget validation",
+            "detail": "HTTP 404: {\"detail\":\"Workflow request is not ready for finance validation\"}"
+          }
+        ]
+      },
+      {
+        "break_id": "operator-eval-budget-dept",
+        "suite": "operator-eval",
+        "feature": "Operator eval create_budget department field",
+        "path": "api/app/operator_eval.py",
+        "run_status": "failed_as_expected",
+        "detected": true,
+        "failures": [
+          {
+            "check": "SQL: Marketing 2027 budget exists with exact fields",
+            "detail": "{'allocated_amount': Decimal('30000.00'), 'department': 'Marketin', 'fiscal_year': 2027, 'currency_code': 'AED'}"
+          }
+        ]
+      }
+    ]
+  }
+}

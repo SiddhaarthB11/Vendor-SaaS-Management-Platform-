@@ -1,0 +1,2 @@
+vendor_name,subscription_name,category,department,start_date,renewal_date,billing_cycle,amount,currency,status,notes
+"Vendor Example","Subscription Example","SaaS","Engineering","2023-01-01","2024-01-01","annual",12000.00,"USD","active","Test subscription"
