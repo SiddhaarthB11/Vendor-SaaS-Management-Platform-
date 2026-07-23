@@ -368,20 +368,28 @@ SOURCE FILES (read-only context — find the exact text to match from here):
     text = ""
     last_error: Exception | None = None
     for candidate in models_to_try:
+        # Hard timeout at the thread level — the SDK's own httpx client timeout
+        # is not reliably honored on every code path, so a stalled call must be
+        # abandoned regardless of what the SDK does. IMPORTANT: do NOT use
+        # ThreadPoolExecutor as a context manager here — `with` calls
+        # shutdown(wait=True) on exit, which blocks until the worker thread
+        # finishes even after future.result(timeout=...) has already raised
+        # TimeoutError, silently defeating the timeout. Create it directly and
+        # never call shutdown(wait=True) on a thread we've given up on.
+        pool = concurrent.futures.ThreadPoolExecutor(max_workers=1)
         try:
-            # Hard timeout at the thread level — the SDK's own httpx client
-            # timeout is not reliably honored on every code path, so a stalled
-            # call must be abandoned here regardless of what the SDK does.
-            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
-                future = pool.submit(client.models.generate_content, model=candidate, contents=prompt, config=config)
-                response = future.result(timeout=150)
+            future = pool.submit(client.models.generate_content, model=candidate, contents=prompt, config=config)
+            response = future.result(timeout=150)
             text = (response.text or "").strip()
+            pool.shutdown(wait=False)
             if text:
                 break
         except concurrent.futures.TimeoutError:
+            pool.shutdown(wait=False)  # abandon the stuck worker thread, don't wait on it
             last_error = TimeoutError(f"{candidate} did not respond within 150s")
             continue
         except Exception as exc:
+            pool.shutdown(wait=False)
             last_error = exc
             continue
     if not text:
