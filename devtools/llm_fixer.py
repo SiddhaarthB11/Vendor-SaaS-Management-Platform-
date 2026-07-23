@@ -36,6 +36,73 @@ def _parse_json_response(text: str) -> dict[str, Any]:
         raise
 
 
+# Delimiter-based edit format — deliberately NOT JSON. Embedding full source files
+# (which may be 300KB+, e.g. main.py) as a JSON string value requires the model to
+# perfectly escape every quote/backslash/newline in that content; on large files
+# this reliably breaks. Plain-text markers carry raw file content verbatim with no
+# escaping step, so there is nothing for the model to get wrong here.
+_EDIT_START = "@@FIXER_EDIT_START@@"
+_EDIT_PATH_PREFIX = "PATH:"
+_EDIT_CONTENT_MARK = "@@FIXER_CONTENT@@"
+_EDIT_END = "@@FIXER_EDIT_END@@"
+_NOTES_START = "@@FIXER_NOTES@@"
+_NOTES_END = "@@FIXER_NOTES_END@@"
+
+
+def _strip_markdown_fence(text: str) -> str:
+    """Models sometimes wrap the whole answer in a ``` fence despite instructions
+    not to. Strip a single outer fence if the entire response is wrapped in one."""
+    stripped = text.strip()
+    if stripped.startswith("```"):
+        lines = stripped.splitlines()
+        if lines and lines[0].startswith("```"):
+            lines = lines[1:]
+        if lines and lines[-1].strip() == "```":
+            lines = lines[:-1]
+        return "\n".join(lines)
+    return text
+
+
+def _parse_edit_blocks(text: str) -> tuple[list[dict[str, str]], str]:
+    """Parse the delimiter-based fixer output into edits + notes.
+
+    Raises ValueError with a clear message if the expected markers are missing —
+    callers should treat that the same as a JSON parse failure (retry/report).
+    """
+    text = _strip_markdown_fence(text)
+    edits: list[dict[str, str]] = []
+    pos = 0
+    while True:
+        start = text.find(_EDIT_START, pos)
+        if start == -1:
+            break
+        path_marker = text.find(_EDIT_PATH_PREFIX, start)
+        content_marker = text.find(_EDIT_CONTENT_MARK, start)
+        end_marker = text.find(_EDIT_END, start)
+        if path_marker == -1 or content_marker == -1 or end_marker == -1:
+            raise ValueError(f"Malformed edit block starting at offset {start} — missing markers.")
+        path = text[path_marker + len(_EDIT_PATH_PREFIX):content_marker].strip()
+        content = text[content_marker + len(_EDIT_CONTENT_MARK):end_marker]
+        # Strip exactly one leading/trailing newline the model conventionally adds
+        # around the content block, without touching intentional blank lines.
+        if content.startswith("\n"):
+            content = content[1:]
+        if content.endswith("\n"):
+            content = content[:-1]
+        edits.append({"path": path, "content": content})
+        pos = end_marker + len(_EDIT_END)
+
+    notes = ""
+    n_start = text.find(_NOTES_START)
+    if n_start != -1:
+        n_end = text.find(_NOTES_END, n_start)
+        notes = text[n_start + len(_NOTES_START):n_end if n_end != -1 else None].strip()
+
+    if not edits and not notes:
+        raise ValueError("No edit blocks or notes found in fixer output — unexpected format.")
+    return edits, notes
+
+
 def _safe_repo_path(repo_root: Path, rel: str) -> Path | None:
     rel = rel.replace("\\", "/").lstrip("/")
     if not any(rel.startswith(prefix) for prefix in ALLOWED_PREFIXES):
@@ -171,19 +238,28 @@ def apply_llm_fix(
 
 Fix the ROOT CAUSE minimally in api/ or ui/ source files. Do not weaken features or edit tests unless they are objectively wrong.
 
-Return STRICT JSON only:
-{{
-  "edits": [
-    {{"path": "api/app/example.py", "content": "full new file contents as a string"}}
-  ],
-  "notes": "one sentence on what you changed"
-}}
+Do NOT use JSON. Output each changed file as a block in EXACTLY this plain-text
+format (no markdown fences, no extra escaping — write the raw file content
+verbatim between the markers):
+
+{_EDIT_START}
+{_EDIT_PATH_PREFIX} api/app/example.py
+{_EDIT_CONTENT_MARK}
+<full new file content goes here, verbatim, unescaped>
+{_EDIT_END}
+
+Repeat one block per changed file. After all edit blocks, add:
+
+{_NOTES_START}
+one sentence on what you changed
+{_NOTES_END}
 
 Rules:
 - Include only files you actually change.
 - Paths must start with api/ or ui/.
 - Provide FULL file content for each edited file (not a diff).
 - Do not touch .env, secrets, or devtools/.
+- Do not wrap file content in markdown code fences.
 {rejection_block}
 ATTEMPT: {attempt}
 
@@ -199,38 +275,46 @@ SOURCE FILES (read-only context — rewrite only what you change):
 
     model = os.environ.get("AUTOFIX_FIXER_MODEL", "gemini-2.5-flash")
     try:
+        import httpx
         from google import genai
         from google.genai import types as gtypes
     except ImportError as exc:
         return False, f"google-genai not installed: {exc}", []
 
-    client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model=model,
-        contents=prompt,
-        config=gtypes.GenerateContentConfig(
-            temperature=0.1,
-            response_mime_type="application/json",
-        ),
-    )
-    text = (response.text or "").strip()
-    try:
-        parsed = _parse_json_response(text)
-    except json.JSONDecodeError as exc:
-        return False, f"LLM fixer returned invalid JSON: {exc}", []
+    # Explicit timeout — a stalled network call must not hang the whole job.
+    client = genai.Client(api_key=api_key, http_options={"httpx_client": httpx.Client(timeout=120.0)})
+    config = gtypes.GenerateContentConfig(temperature=0.1, max_output_tokens=32768)
 
-    edits = parsed.get("edits") or []
-    if not isinstance(edits, list) or not edits:
-        notes = str(parsed.get("notes") or "LLM fixer returned no edits.")
-        return False, notes, []
+    fallback_models = ["gemini-2.5-flash", "gemini-2.5-pro"]
+    models_to_try = [model] + [m for m in fallback_models if m != model]
+
+    text = ""
+    last_error: Exception | None = None
+    for candidate in models_to_try:
+        try:
+            response = client.models.generate_content(model=candidate, contents=prompt, config=config)
+            text = (response.text or "").strip()
+            if text:
+                break
+        except Exception as exc:
+            last_error = exc
+            continue
+    if not text:
+        return False, f"LLM fixer got no response from any model ({models_to_try}): {last_error}", []
+
+    try:
+        edits, notes = _parse_edit_blocks(text)
+    except ValueError as exc:
+        return False, f"LLM fixer returned unparseable output: {exc}", []
+
+    if not edits:
+        return False, notes or "LLM fixer returned no edits.", []
 
     changed: list[str] = []
     for edit in edits:
-        if not isinstance(edit, dict):
-            continue
-        rel = str(edit.get("path") or "").strip()
+        rel = edit.get("path", "").strip()
         content = edit.get("content")
-        if not rel or not isinstance(content, str):
+        if not rel or content is None:
             continue
         target = _safe_repo_path(repo_root, rel)
         if not target:
@@ -240,7 +324,6 @@ SOURCE FILES (read-only context — rewrite only what you change):
         changed.append(rel.replace("\\", "/"))
 
     if not changed:
-        return False, str(parsed.get("notes") or "LLM fixer produced no applicable edits."), []
+        return False, notes or "LLM fixer produced no applicable edits.", []
 
-    notes = str(parsed.get("notes") or f"Updated {len(changed)} file(s).")
-    return True, notes, changed
+    return True, notes or f"Updated {len(changed)} file(s).", changed

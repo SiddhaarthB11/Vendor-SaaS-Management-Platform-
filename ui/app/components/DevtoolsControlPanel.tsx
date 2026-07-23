@@ -230,6 +230,24 @@ export default function DevtoolsControlPanel({
     }
   };
 
+  const [mergeResult, setMergeResult] = useState<{ merged: boolean; message: string; branch: string } | null>(null);
+
+  const mergeBranch = async (branch: string) => {
+    setBusy("merge");
+    setMergeResult(null);
+    try {
+      const data = await postJson("/api/devtools/merge", { branch });
+      setMergeResult(data as unknown as { merged: boolean; message: string; branch: string });
+      if ((data as unknown as { merged?: boolean }).merged) {
+        await fetchStatus();
+      }
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy("");
+    }
+  };
+
   const toggleWatch = async (enabled: boolean) => {
     setBusy("watch");
     try {
@@ -533,6 +551,39 @@ export default function DevtoolsControlPanel({
             <p style={{ marginTop: 8, fontSize: 13, color: "#86efac" }}>
               Cleanup: removed {(report?.cleanup as { total_rows?: number }).total_rows} diagnostic row(s)
             </p>
+          ) : null}
+          {activeJob.kind === "autofix" &&
+          activeJob.status === "completed" &&
+          report?.overall === "pass" &&
+          branch ? (
+            <div
+              style={{
+                marginTop: 16,
+                padding: 14,
+                borderRadius: 8,
+                background: "rgba(34,197,94,0.08)",
+                border: "1px solid rgba(34,197,94,0.35)",
+              }}
+            >
+              <p style={{ margin: "0 0 10px", fontSize: 14, color: "#86efac" }}>
+                All tests passing on <strong>{branch}</strong>. Review the diff, then merge into main —
+                this is the only step that changes your main branch, and it only happens when you click it.
+              </p>
+              <button
+                type="button"
+                disabled={!!busy}
+                onClick={() => void mergeBranch(branch)}
+                style={{ background: "rgba(34,197,94,0.18)", border: "1px solid rgba(34,197,94,0.5)", color: "#bbf7d0" }}
+              >
+                {busy === "merge" ? "Merging…" : `✓ Merge ${branch} into main`}
+              </button>
+              {mergeResult && mergeResult.branch === branch ? (
+                <p style={{ margin: "10px 0 0", fontSize: 13, color: mergeResult.merged ? "#86efac" : "#fca5a5" }}>
+                  {mergeResult.merged ? "✓ " : "✗ "}
+                  {mergeResult.message}
+                </p>
+              ) : null}
+            </div>
           ) : null}
         </div>
       ) : null}
