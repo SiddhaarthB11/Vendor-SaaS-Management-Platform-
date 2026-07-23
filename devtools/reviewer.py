@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import os
 import re
@@ -109,12 +110,20 @@ Respond with JSON only."""
     last_error: Exception | None = None
     for candidate in models_to_try:
         try:
-            response = client.models.generate_content(model=candidate, contents=prompt, config=config)
+            # Hard timeout at the thread level — the SDK's own httpx client
+            # timeout is not reliably honored on every code path, so a stalled
+            # call must be abandoned here regardless of what the SDK does.
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(client.models.generate_content, model=candidate, contents=prompt, config=config)
+                response = future.result(timeout=90)
             text = (response.text or "").strip()
             parsed = _parse_json_response(text)
             approve = bool(parsed.get("approve"))
             reason = str(parsed.get("reason") or "").strip() or ("Approved." if approve else "Rejected.")
             return {"approve": approve, "reason": reason, "model": candidate}
+        except concurrent.futures.TimeoutError:
+            last_error = TimeoutError(f"{candidate} did not respond within 90s")
+            continue
         except json.JSONDecodeError as exc:
             last_error = exc
             continue

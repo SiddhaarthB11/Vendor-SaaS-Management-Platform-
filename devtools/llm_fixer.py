@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import concurrent.futures
 import json
 import os
 import re
@@ -292,10 +293,18 @@ SOURCE FILES (read-only context — rewrite only what you change):
     last_error: Exception | None = None
     for candidate in models_to_try:
         try:
-            response = client.models.generate_content(model=candidate, contents=prompt, config=config)
+            # Hard timeout at the thread level — the SDK's own httpx client
+            # timeout is not reliably honored on every code path, so a stalled
+            # call must be abandoned here regardless of what the SDK does.
+            with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+                future = pool.submit(client.models.generate_content, model=candidate, contents=prompt, config=config)
+                response = future.result(timeout=150)
             text = (response.text or "").strip()
             if text:
                 break
+        except concurrent.futures.TimeoutError:
+            last_error = TimeoutError(f"{candidate} did not respond within 150s")
+            continue
         except Exception as exc:
             last_error = exc
             continue
@@ -305,7 +314,15 @@ SOURCE FILES (read-only context — rewrite only what you change):
     try:
         edits, notes = _parse_edit_blocks(text)
     except ValueError as exc:
-        return False, f"LLM fixer returned unparseable output: {exc}", []
+        # Dump the raw model output so a malformed-response failure is
+        # diagnosable instead of just "missing markers" with no context.
+        debug_path = repo_root / "devtools" / "state" / f"fixer_raw_output_attempt_{attempt}.txt"
+        try:
+            debug_path.parent.mkdir(parents=True, exist_ok=True)
+            debug_path.write_text(text, encoding="utf-8")
+        except OSError:
+            pass
+        return False, f"LLM fixer returned unparseable output: {exc} (raw output saved to {debug_path.name})", []
 
     if not edits:
         return False, notes or "LLM fixer returned no edits.", []
