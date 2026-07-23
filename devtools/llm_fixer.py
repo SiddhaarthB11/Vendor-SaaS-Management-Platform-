@@ -81,12 +81,18 @@ def _strip_one_boundary_newline(s: str) -> str:
 def _parse_edit_blocks(text: str) -> tuple[list[dict[str, str]], str]:
     """Parse the delimiter-based SEARCH/REPLACE fixer output into edits + notes.
 
-    Raises ValueError with a clear message if the expected markers are missing —
-    callers should treat that the same as a JSON parse failure (retry/report).
+    Models occasionally stop generating partway through a trailing block (a
+    natural end-of-response quirk, not a token-limit truncation — observed
+    live at ~1,200 output tokens, far under any limit). Rather than discard
+    the whole response over one incomplete trailing block, keep every block
+    that parsed completely and drop only the dangling one; the loop's next
+    attempt will pick up whatever that block was trying to fix. Only raise if
+    NOT ONE complete block was found.
     """
     text = _strip_markdown_fence(text)
     edits: list[dict[str, str]] = []
     pos = 0
+    incomplete_at: int | None = None
     while True:
         start = text.find(_EDIT_START, pos)
         if start == -1:
@@ -96,12 +102,16 @@ def _parse_edit_blocks(text: str) -> tuple[list[dict[str, str]], str]:
         replace_marker = text.find(_REPLACE_MARK, start)
         end_marker = text.find(_EDIT_END, start)
         if path_marker == -1 or search_marker == -1 or replace_marker == -1 or end_marker == -1:
-            raise ValueError(f"Malformed edit block starting at offset {start} — missing markers.")
+            incomplete_at = start
+            break
         path = text[path_marker + len(_EDIT_PATH_PREFIX):search_marker].strip()
         search_text = _strip_one_boundary_newline(text[search_marker + len(_SEARCH_MARK):replace_marker])
         replace_text = _strip_one_boundary_newline(text[replace_marker + len(_REPLACE_MARK):end_marker])
         edits.append({"path": path, "search": search_text, "replace": replace_text})
         pos = end_marker + len(_EDIT_END)
+
+    if not edits and incomplete_at is not None:
+        raise ValueError(f"Malformed edit block starting at offset {incomplete_at} — missing markers.")
 
     notes = ""
     n_start = text.find(_NOTES_START)
