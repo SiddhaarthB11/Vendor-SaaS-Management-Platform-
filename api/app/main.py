@@ -7545,7 +7545,7 @@ def run_url_scraping_test(conn: Connection = Depends(get_connection)):
         entries = cur.fetchall()
 
     total_entries = len(entries)
-    chk("Vendor catalogue: entries with a pricing URL", total_entries > 999999,
+    chk("Vendor catalogue: entries with a pricing URL", total_entries > 0,
         str(total_entries) + " entries found" if total_entries else "No entries have a scrape_url - add pricing URLs in the Vendors section")
 
     if total_entries == 0:
