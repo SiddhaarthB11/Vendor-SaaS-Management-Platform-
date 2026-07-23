@@ -15,13 +15,27 @@ import httpx
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_BASE_URL = "http://localhost:8000"
-DEFAULT_TIMEOUT = 900.0
+DEFAULT_TIMEOUT = 180.0
+# 900s was original default — far too long for a single suite call in the
+# autofix loop; a stalled suite should fail fast so the loop can react, not
+# silently sit for 15 minutes looking indistinguishable from a real hang.
+# 180s still gives ample headroom for legitimately slower deterministic
+# suites (many DB round-trips) while bounding worst case to a few minutes.
 
 # All POST /api/diagnostics/* test suites (excludes reload-prompts utility).
 DIAGNOSTIC_SUITES: list[dict[str, Any]] = [
     {"name": "workflow", "path": "/api/diagnostics/run-workflow-test"},
     {"name": "it-subscription", "path": "/api/diagnostics/run-it-subscription-test"},
-    {"name": "ai-test", "path": "/api/diagnostics/run-ai-test"},
+    {
+        "name": "ai-test",
+        "path": "/api/diagnostics/run-ai-test",
+        # Makes several live Gemini calls (extraction, tool summary, workflow
+        # review) that aren't timeout-hardened — excluded from the autofix
+        # loop's "quick" mode so a stalled call there can't stall the whole
+        # judge→fixer→reviewer cycle. Still runs in "full" judge runs.
+        "slow": True,
+        "tags": ["llm"],
+    },
     {"name": "licence-assignment", "path": "/api/diagnostics/run-licence-assignment-test"},
     {"name": "renewal", "path": "/api/diagnostics/run-renewal-test"},
     {"name": "master-admin", "path": "/api/diagnostics/run-master-admin-test"},
