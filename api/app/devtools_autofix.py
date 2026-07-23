@@ -57,6 +57,29 @@ def _import_autofix(repo_root: Path):
     return run_autofix_loop_report
 
 
+def merge_autofix_branch(branch: str, *, main_branch: str = "main") -> dict[str, Any]:
+    """Merge a completed autofix branch into main. Called ONLY from an explicit
+    user action in the control panel (POST /api/devtools/merge) — never from the
+    autofix loop itself. This is the human-approval step."""
+    repo_root = resolve_repo_root()
+    root_str = str(repo_root)
+    if root_str not in sys.path:
+        sys.path.insert(0, root_str)
+    from devtools.git_helpers import diff_stat, merge_branch_to_main
+
+    branch = (branch or "").strip()
+    if not branch:
+        return {"merged": False, "error": "branch is required"}
+    if not branch.startswith("autofix/"):
+        # Guardrail: this endpoint merges autofix branches only, not arbitrary
+        # branch names a caller might pass in.
+        return {"merged": False, "error": "only autofix/* branches may be merged from the panel"}
+
+    stat_before = diff_stat(repo_root, main_branch, branch)
+    ok, message = merge_branch_to_main(repo_root, branch, main_branch=main_branch)
+    return {"merged": ok, "message": message, "branch": branch, "diff_stat": stat_before}
+
+
 def run_panel_autofix(
     conn: Connection,
     job_id: UUID,

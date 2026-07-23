@@ -69,7 +69,7 @@ def review_fix(
             "reason": "GEMINI_API_KEY not configured — reviewer cannot run.",
         }
 
-    reviewer_model = model or os.environ.get("AUTOFIX_REVIEWER_MODEL", "gemini-2.0-flash")
+    reviewer_model = model or os.environ.get("AUTOFIX_REVIEWER_MODEL", "gemini-2.5-flash")
 
     failures = failure_report.get("failures") or []
     failure_text = json.dumps(failures[:40], indent=2)
@@ -89,22 +89,40 @@ GIT DIFF (staged + unstaged):
 Respond with JSON only."""
 
     try:
+        import httpx
         from google import genai
         from google.genai import types as gtypes
     except ImportError as exc:
         return {"approve": False, "reason": f"google-genai not installed: {exc}"}
 
-    client = genai.Client(api_key=api_key)
-    response = client.models.generate_content(
-        model=reviewer_model,
-        contents=prompt,
-        config=gtypes.GenerateContentConfig(
-            temperature=0.0,
-            response_mime_type="application/json",
-        ),
+    # Explicit timeout: without one, a stalled network call hangs this thread
+    # forever, which hangs the whole autofix job with no error ever surfaced.
+    client = genai.Client(
+        api_key=api_key,
+        http_options={"httpx_client": httpx.Client(timeout=90.0)},
     )
-    text = (response.text or "").strip()
-    parsed = _parse_json_response(text)
-    approve = bool(parsed.get("approve"))
-    reason = str(parsed.get("reason") or "").strip() or ("Approved." if approve else "Rejected.")
-    return {"approve": approve, "reason": reason, "model": reviewer_model}
+    config = gtypes.GenerateContentConfig(temperature=0.0, response_mime_type="application/json")
+
+    fallback_models = ["gemini-2.5-flash", "gemini-2.5-pro"]
+    models_to_try = [reviewer_model] + [m for m in fallback_models if m != reviewer_model]
+
+    last_error: Exception | None = None
+    for candidate in models_to_try:
+        try:
+            response = client.models.generate_content(model=candidate, contents=prompt, config=config)
+            text = (response.text or "").strip()
+            parsed = _parse_json_response(text)
+            approve = bool(parsed.get("approve"))
+            reason = str(parsed.get("reason") or "").strip() or ("Approved." if approve else "Rejected.")
+            return {"approve": approve, "reason": reason, "model": candidate}
+        except json.JSONDecodeError as exc:
+            last_error = exc
+            continue
+        except Exception as exc:
+            last_error = exc
+            continue
+
+    return {
+        "approve": False,
+        "reason": f"Reviewer could not get a valid response from any model ({models_to_try}): {last_error}",
+    }

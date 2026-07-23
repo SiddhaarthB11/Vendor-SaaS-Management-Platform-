@@ -387,6 +387,15 @@ def set_watch(
     return get_watch_status()
 
 
+def merge_branch(conn: Connection, *, branch: str, actor_roles: list[str] | None) -> dict[str, Any]:
+    """Merge an autofix branch into main. Master-admin only — this is the
+    deliberate human-approval action; it is never triggered automatically."""
+    _require_master(actor_roles)
+    from app.devtools_autofix import merge_autofix_branch
+
+    return merge_autofix_branch(branch)
+
+
 def panel_status(conn: Connection) -> dict[str, Any]:
     _expire_stale_jobs(conn)
     latest_judge = get_latest_job(conn, "judge")

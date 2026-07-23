@@ -9304,6 +9304,18 @@ def devtools_cancel_job(job_id: UUID, payload: dict = Body(default={}), conn: Co
     return cancel_job(conn, job_id, actor_roles=payload.get("actor_roles") or [])
 
 
+@app.post("/api/devtools/merge")
+def devtools_merge_branch(payload: dict = Body(default={}), conn: Connection = Depends(get_connection)) -> dict:
+    """Merge a finished autofix branch into main. Explicit human action from the
+    control panel — the autofix loop never calls this itself."""
+    from app.devtools_panel import merge_branch
+
+    branch = str(payload.get("branch") or "").strip()
+    if not branch:
+        raise HTTPException(status_code=400, detail="branch is required")
+    return merge_branch(conn, branch=branch, actor_roles=payload.get("actor_roles") or [])
+
+
 @app.post("/api/devtools/watch")
 def devtools_set_watch(payload: dict = Body(default={}), conn: Connection = Depends(get_connection)) -> dict:
     from app.devtools_panel import set_watch

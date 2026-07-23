@@ -147,3 +147,58 @@ def commit_changes(repo_root: Path, message: str) -> tuple[bool, str]:
         return True, ""
     except subprocess.CalledProcessError as exc:
         return False, (exc.stderr or exc.stdout or str(exc)).strip()
+
+
+def branch_exists(repo_root: Path, branch: str) -> bool:
+    return run_git(repo_root, ["show-ref", "--verify", "--quiet", f"refs/heads/{branch}"], check=False).returncode == 0
+
+
+def current_branch(repo_root: Path) -> str:
+    return run_git(repo_root, ["branch", "--show-current"], check=False).stdout.strip()
+
+
+def diff_stat(repo_root: Path, base: str, branch: str) -> str:
+    return run_git(repo_root, ["diff", f"{base}...{branch}", "--stat"], check=False).stdout.strip()
+
+
+def merge_branch_to_main(
+    repo_root: Path,
+    branch: str,
+    *,
+    main_branch: str = "main",
+    delete_branch_after: bool = True,
+) -> tuple[bool, str]:
+    """Merge an autofix branch into main. This is the human-approval action taken
+    from the control panel — it never runs automatically as part of the autofix
+    loop itself, only in response to an explicit user click.
+
+    Refuses to merge if the working tree has uncommitted changes (would silently
+    mix unrelated edits into the merge) or if the branch doesn't exist.
+    """
+    if not branch_exists(repo_root, branch):
+        return False, f"branch '{branch}' does not exist"
+    if has_changes(repo_root):
+        return False, "working tree has uncommitted changes — commit or discard them before merging"
+
+    started_on = current_branch(repo_root)
+    try:
+        checkout = run_git(repo_root, ["checkout", main_branch], check=False)
+        if checkout.returncode != 0:
+            return False, (checkout.stderr or checkout.stdout or f"could not check out {main_branch}").strip()
+
+        merge = run_git(repo_root, ["merge", "--no-ff", branch, "-m", f"Merge autofix branch {branch}"], check=False)
+        if merge.returncode != 0:
+            # Leave the failed merge state for manual resolution rather than
+            # guessing — but return to the branch we started on so the panel's
+            # view of "current branch" doesn't silently change on failure.
+            run_git(repo_root, ["merge", "--abort"], check=False)
+            run_git(repo_root, ["checkout", started_on], check=False)
+            return False, (merge.stderr or merge.stdout or "merge failed").strip()
+
+        if delete_branch_after:
+            run_git(repo_root, ["branch", "-d", branch], check=False)
+
+        return True, f"merged {branch} into {main_branch}"
+    except Exception as exc:  # noqa: BLE001 - surfaced to the panel as a plain message
+        run_git(repo_root, ["checkout", started_on], check=False)
+        return False, str(exc)
