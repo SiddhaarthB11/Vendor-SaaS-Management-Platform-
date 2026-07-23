@@ -37,14 +37,20 @@ def _parse_json_response(text: str) -> dict[str, Any]:
         raise
 
 
-# Delimiter-based edit format — deliberately NOT JSON. Embedding full source files
-# (which may be 300KB+, e.g. main.py) as a JSON string value requires the model to
-# perfectly escape every quote/backslash/newline in that content; on large files
-# this reliably breaks. Plain-text markers carry raw file content verbatim with no
-# escaping step, so there is nothing for the model to get wrong here.
+# Delimiter-based SEARCH/REPLACE edit format — deliberately NOT JSON, and
+# deliberately NOT full-file-content. Two failure modes ruled this out:
+#   1. Embedding a full file as a JSON string requires perfect escaping of every
+#      quote/backslash/newline in arbitrary source code — reliably breaks.
+#   2. Asking for a full rewrite of a large file (main.py is ~9,300 lines) means
+#      the response is often truncated by the output token limit before the
+#      closing marker is ever written — confirmed live via a saved raw output
+#      that started correctly but never reached @@FIXER_EDIT_END@@.
+# A search/replace block's output size is proportional to the actual change,
+# not the file size, so it can never hit this ceiling on any file.
 _EDIT_START = "@@FIXER_EDIT_START@@"
 _EDIT_PATH_PREFIX = "PATH:"
-_EDIT_CONTENT_MARK = "@@FIXER_CONTENT@@"
+_SEARCH_MARK = "@@FIXER_SEARCH@@"
+_REPLACE_MARK = "@@FIXER_REPLACE@@"
 _EDIT_END = "@@FIXER_EDIT_END@@"
 _NOTES_START = "@@FIXER_NOTES@@"
 _NOTES_END = "@@FIXER_NOTES_END@@"
@@ -64,8 +70,16 @@ def _strip_markdown_fence(text: str) -> str:
     return text
 
 
+def _strip_one_boundary_newline(s: str) -> str:
+    if s.startswith("\n"):
+        s = s[1:]
+    if s.endswith("\n"):
+        s = s[:-1]
+    return s
+
+
 def _parse_edit_blocks(text: str) -> tuple[list[dict[str, str]], str]:
-    """Parse the delimiter-based fixer output into edits + notes.
+    """Parse the delimiter-based SEARCH/REPLACE fixer output into edits + notes.
 
     Raises ValueError with a clear message if the expected markers are missing —
     callers should treat that the same as a JSON parse failure (retry/report).
@@ -78,19 +92,15 @@ def _parse_edit_blocks(text: str) -> tuple[list[dict[str, str]], str]:
         if start == -1:
             break
         path_marker = text.find(_EDIT_PATH_PREFIX, start)
-        content_marker = text.find(_EDIT_CONTENT_MARK, start)
+        search_marker = text.find(_SEARCH_MARK, start)
+        replace_marker = text.find(_REPLACE_MARK, start)
         end_marker = text.find(_EDIT_END, start)
-        if path_marker == -1 or content_marker == -1 or end_marker == -1:
+        if path_marker == -1 or search_marker == -1 or replace_marker == -1 or end_marker == -1:
             raise ValueError(f"Malformed edit block starting at offset {start} — missing markers.")
-        path = text[path_marker + len(_EDIT_PATH_PREFIX):content_marker].strip()
-        content = text[content_marker + len(_EDIT_CONTENT_MARK):end_marker]
-        # Strip exactly one leading/trailing newline the model conventionally adds
-        # around the content block, without touching intentional blank lines.
-        if content.startswith("\n"):
-            content = content[1:]
-        if content.endswith("\n"):
-            content = content[:-1]
-        edits.append({"path": path, "content": content})
+        path = text[path_marker + len(_EDIT_PATH_PREFIX):search_marker].strip()
+        search_text = _strip_one_boundary_newline(text[search_marker + len(_SEARCH_MARK):replace_marker])
+        replace_text = _strip_one_boundary_newline(text[replace_marker + len(_REPLACE_MARK):end_marker])
+        edits.append({"path": path, "search": search_text, "replace": replace_text})
         pos = end_marker + len(_EDIT_END)
 
     notes = ""
@@ -102,6 +112,55 @@ def _parse_edit_blocks(text: str) -> tuple[list[dict[str, str]], str]:
     if not edits and not notes:
         raise ValueError("No edit blocks or notes found in fixer output — unexpected format.")
     return edits, notes
+
+
+def _apply_search_replace(repo_root: Path, edits: list[dict[str, str]]) -> tuple[list[str], list[str]]:
+    """Apply search/replace edits in place. Returns (changed_paths, problems).
+
+    A search string that doesn't match exactly once is a problem, not a crash —
+    it's reported back so the loop can feed it to the next fixer attempt.
+    """
+    changed: list[str] = []
+    problems: list[str] = []
+    # Group by path so multiple edits to the same file apply against its
+    # current (already-edited-this-round) content, in order.
+    by_path: dict[str, list[dict[str, str]]] = {}
+    for edit in edits:
+        by_path.setdefault(edit["path"], []).append(edit)
+
+    for rel, file_edits in by_path.items():
+        target = _safe_repo_path(repo_root, rel)
+        if not target or not target.is_file():
+            problems.append(f"{rel}: not a valid/existing file under api/ or ui/")
+            continue
+        try:
+            content = target.read_text(encoding="utf-8")
+        except OSError as exc:
+            problems.append(f"{rel}: could not read file ({exc})")
+            continue
+
+        file_changed = False
+        for edit in file_edits:
+            search_text = edit["search"]
+            replace_text = edit["replace"]
+            if not search_text:
+                problems.append(f"{rel}: empty SEARCH block, skipped")
+                continue
+            occurrences = content.count(search_text)
+            if occurrences == 0:
+                problems.append(f"{rel}: SEARCH text not found (whitespace/content mismatch) — {search_text[:80]!r}")
+                continue
+            if occurrences > 1:
+                problems.append(f"{rel}: SEARCH text matched {occurrences} times, expected exactly 1 — {search_text[:80]!r}")
+                continue
+            content = content.replace(search_text, replace_text, 1)
+            file_changed = True
+
+        if file_changed:
+            target.write_text(content, encoding="utf-8")
+            changed.append(rel)
+
+    return changed, problems
 
 
 def _safe_repo_path(repo_root: Path, rel: str) -> Path | None:
@@ -239,28 +298,35 @@ def apply_llm_fix(
 
 Fix the ROOT CAUSE minimally in api/ or ui/ source files. Do not weaken features or edit tests unless they are objectively wrong.
 
-Do NOT use JSON. Output each changed file as a block in EXACTLY this plain-text
-format (no markdown fences, no extra escaping — write the raw file content
-verbatim between the markers):
+Do NOT use JSON and do NOT rewrite whole files. Output each change as a
+SEARCH/REPLACE block in EXACTLY this plain-text format (no markdown fences,
+no escaping — write the code verbatim between the markers):
 
 {_EDIT_START}
 {_EDIT_PATH_PREFIX} api/app/example.py
-{_EDIT_CONTENT_MARK}
-<full new file content goes here, verbatim, unescaped>
+{_SEARCH_MARK}
+<the EXACT existing lines to find — copy them verbatim from SOURCE FILES below,
+including original indentation. Keep this block as SHORT as possible while still
+being unique in the file (a few lines of tight context around the bug is enough
+— do NOT include the whole function or file).>
+{_REPLACE_MARK}
+<the new lines that should replace the SEARCH block>
 {_EDIT_END}
 
-Repeat one block per changed file. After all edit blocks, add:
+Repeat one block per change (multiple blocks per file are fine — one per
+distinct location). After all edit blocks, add:
 
 {_NOTES_START}
 one sentence on what you changed
 {_NOTES_END}
 
 Rules:
-- Include only files you actually change.
+- The SEARCH block must match EXACTLY ONE location in the file, verbatim
+  (exact whitespace/indentation) — it will be rejected otherwise.
+- Keep SEARCH blocks small and targeted at the actual bug, not whole functions.
 - Paths must start with api/ or ui/.
-- Provide FULL file content for each edited file (not a diff).
 - Do not touch .env, secrets, or devtools/.
-- Do not wrap file content in markdown code fences.
+- Do not wrap output in markdown code fences.
 {rejection_block}
 ATTEMPT: {attempt}
 
@@ -270,7 +336,7 @@ FAILURE SUMMARY:
 FAILURES:
 {json.dumps(failures[:40], indent=2)}
 
-SOURCE FILES (read-only context — rewrite only what you change):
+SOURCE FILES (read-only context — find the exact text to match from here):
 {file_context}
 """
 
@@ -327,20 +393,14 @@ SOURCE FILES (read-only context — rewrite only what you change):
     if not edits:
         return False, notes or "LLM fixer returned no edits.", []
 
-    changed: list[str] = []
-    for edit in edits:
-        rel = edit.get("path", "").strip()
-        content = edit.get("content")
-        if not rel or content is None:
-            continue
-        target = _safe_repo_path(repo_root, rel)
-        if not target:
-            continue
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(content, encoding="utf-8")
-        changed.append(rel.replace("\\", "/"))
+    changed, problems = _apply_search_replace(repo_root, edits)
 
     if not changed:
-        return False, notes or "LLM fixer produced no applicable edits.", []
+        detail = "; ".join(problems) if problems else "LLM fixer produced no applicable edits."
+        return False, detail, []
+    if problems:
+        # Partial success — some edits applied, some didn't match. Report both
+        # so the reviewer/next attempt sees the full picture.
+        notes = f"{notes or f'Updated {len(changed)} file(s).'} (unapplied: {'; '.join(problems)})"
 
     return True, notes or f"Updated {len(changed)} file(s).", changed
