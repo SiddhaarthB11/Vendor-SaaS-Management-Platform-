@@ -2808,7 +2808,7 @@ def complete_workflow_request(request_id: UUID, payload: dict = Body(default={})
             if _wf_type_complete == "employee_offboarding":
                 _allowed_complete = {"it_confirmed"}
             elif _wf_type_complete == "hr_onboarding_request":
-                _allowed_complete = {"finance_approvd"}
+                _allowed_complete = {"finance_approved"}
             else:
                 _allowed_complete = {"finance_approved"}
             if request_row["status"] not in _allowed_complete:
@@ -4417,7 +4417,7 @@ def export_audit_logs(limit: int = 500, conn: Connection = Depends(get_connectio
 
 @app.get("/exports/{module}.xlsx")
 def export_module_xlsx(module: str, organisation_id: UUID | None = None, conn: Connection = Depends(get_connection)) -> StreamingResponse:
-    exportable = {"subscriptions", "licences", "budgets", "payments", "employees", "contracts"}
+    exportable = {"vendors", "subscriptions", "licences", "budgets", "payments", "employees", "contracts"}
     if module == "users":
         fields = ["full_name", "work_email", "department", "job_title", "employee_number", "status"]
         conditions = []
@@ -4466,7 +4466,7 @@ def export_module_xlsx(module: str, organisation_id: UUID | None = None, conn: C
 
 @app.get("/exports/{module}/{record_id}.xlsx")
 def export_single_record_xlsx(module: str, record_id: UUID, conn: Connection = Depends(get_connection)) -> StreamingResponse:
-    exportable = {"subscriptions", "licences", "budgets", "payments", "employees", "contracts"}
+    exportable = {"vendors", "subscriptions", "licences", "budgets", "payments", "employees", "contracts"}
     if module not in exportable:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Export not available for this module")
     cfg = _module_config(module)

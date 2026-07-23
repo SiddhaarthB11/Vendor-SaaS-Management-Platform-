@@ -138,9 +138,9 @@ def finance_validation_statuses(workflow_type: str) -> tuple[str, ...]:
     if workflow_type == "renewal_request":
         return ("submitted", "reopened", "master_approved")
     if workflow_type == "license_assignment_request":
-        return ("master_approved",)
+        return ("submitted", "reopened", "master_approved")
     if workflow_type == "hr_onboarding_request":
-        return ("master_approved",)
+        return ("submitted", "reopened", "master_approved")
     return ("submitted", "reopened", "master_approved")
 
 
