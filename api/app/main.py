@@ -1199,6 +1199,15 @@ def _update_module(
     if not fields:
         return _get_module(module, record_id, conn)
 
+    # Invariant: a licence set to available/revoked/expired must not still
+    # point at a person — otherwise it's simultaneously "free" and "someone's
+    # seat", which corrupts every available/idle-seat count in the app.
+    if module == "licences" and payload.get("status") in ("available", "revoked", "expired"):
+        if "assigned_to_person_id" not in fields:
+            fields.append("assigned_to_person_id")
+        payload = dict(payload)
+        payload["assigned_to_person_id"] = None
+
     values = [payload[field] for field in fields]
     values.append(record_id)
     set_clause = ", ".join([f"{field} = %s" for field in fields] + ["updated_at = now()"])
