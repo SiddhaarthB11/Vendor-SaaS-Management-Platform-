@@ -311,15 +311,54 @@ def start_job(
         actor_user_id=actor_user_id,
         actor_email=actor_email,
     )
-    thread = threading.Thread(
-        target=_run_job_worker,
-        args=(job_id, kind, params),
-        daemon=True,
-        name=f"devtools-{kind}-{job_id}",
-    )
-    thread.start()
+    if kind == "autofix":
+        # Autofix must survive uvicorn's --reload restarts: the Fixer edits files
+        # under the watched --reload-dir, which makes WatchFiles kill the worker
+        # process mid-run. A background thread dies with it silently (job hangs
+        # forever at "running"). A detached subprocess is immune to that restart
+        # and writes its own progress straight to the devtools_jobs row.
+        _spawn_autofix_subprocess(job_id, params)
+    else:
+        thread = threading.Thread(
+            target=_run_job_worker,
+            args=(job_id, kind, params),
+            daemon=True,
+            name=f"devtools-{kind}-{job_id}",
+        )
+        thread.start()
     job = get_job(conn, job_id)
     return job or {"id": str(job_id), "kind": kind, "status": "queued"}
+
+
+def _spawn_autofix_subprocess(job_id: UUID, params: dict[str, Any]) -> None:
+    import json
+    import subprocess
+    import sys
+
+    kwargs: dict[str, Any] = {
+        "cwd": str(REPO_ROOT),
+        "env": os.environ.copy(),
+        "stdin": subprocess.DEVNULL,
+        "stdout": subprocess.DEVNULL,
+        "stderr": subprocess.DEVNULL,
+    }
+    # Fully detach from this process's group so a uvicorn --reload restart
+    # (which only signals its own server child) can never take this down with it.
+    if os.name == "posix":
+        kwargs["start_new_session"] = True
+    else:
+        kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
+
+    subprocess.Popen(
+        [
+            sys.executable,
+            "-m",
+            "devtools.autofix_subprocess_runner",
+            str(job_id),
+            json.dumps(params),
+        ],
+        **kwargs,
+    )
 
 
 def get_watch_status() -> dict[str, Any]:

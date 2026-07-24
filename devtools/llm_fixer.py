@@ -167,6 +167,17 @@ def _apply_search_replace(repo_root: Path, edits: list[dict[str, str]]) -> tuple
             file_changed = True
 
         if file_changed:
+            if target.suffix == ".py":
+                import ast
+
+                try:
+                    ast.parse(content, filename=rel)
+                except SyntaxError as exc:
+                    # Reject the whole file's edits rather than write code that won't
+                    # import — a plausible-looking SEARCH/REPLACE can still land in
+                    # the wrong place (e.g. mid-function) and silently corrupt it.
+                    problems.append(f"{rel}: edits would break Python syntax ({exc.msg} at line {exc.lineno}), rejected")
+                    continue
             target.write_text(content, encoding="utf-8")
             changed.append(rel)
 
@@ -337,6 +348,21 @@ Rules:
 - Paths must start with api/ or ui/.
 - Do not touch .env, secrets, or devtools/.
 - Do not wrap output in markdown code fences.
+- Every edit must trace directly to one of the entries in FAILURES below. If you
+  see other things you'd like to improve, leave them alone — this loop grades
+  you strictly on making the listed failures pass, and unrelated changes only
+  add risk of new breakage with no credit.
+- Do NOT add new functions, endpoints, parameters, or fields that nothing in
+  FAILURES asked for. A missing check almost always means a small, existing
+  conditional or value is wrong — not that a new code path needs to be built.
+- Never insert a REPLACE block in the middle of another function's body. If
+  you're inserting a new top-level statement (e.g. a new route), your SEARCH
+  block must be the line or blank line directly BEFORE or AFTER an existing
+  function definition, never a line from inside one.
+- Prefer the smallest attempt that could plausibly work: one or two SEARCH/REPLACE
+  blocks fixing the specific broken condition, value, or comparison named in
+  the failure detail. Only touch more than one file if the failures clearly
+  span multiple files.
 {rejection_block}
 ATTEMPT: {attempt}
 
