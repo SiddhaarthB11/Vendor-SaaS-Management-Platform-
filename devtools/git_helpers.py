@@ -61,11 +61,20 @@ def ensure_git_repo(repo_root: Path) -> None:
 
 
 def normalize_main_branch(repo_root: Path) -> str:
-    """Ensure a sensible default branch name; return current branch."""
+    """Ensure a sensible default branch name, and make sure we're actually ON
+    it before a new autofix branch gets cut. A previous failed/incomplete run
+    can leave the repo checked out on its own autofix/* branch — without this,
+    the next run would branch off THAT instead of a clean main, stacking
+    unrelated attempts on top of each other."""
     branch = run_git(repo_root, ["branch", "--show-current"], check=False).stdout.strip()
     if branch in ("", "master"):
         run_git(repo_root, ["branch", "-M", "main"], check=False)
         return "main"
+    if branch.startswith("autofix/"):
+        checkout = run_git(repo_root, ["checkout", "main"], check=False)
+        if checkout.returncode == 0:
+            return "main"
+        return branch
     return branch or "main"
 
 

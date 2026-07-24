@@ -272,7 +272,84 @@ def _guess_files(failure_report: dict[str, Any], repo_root: Path) -> list[Path]:
     return paths[:12]
 
 
-def _read_file_snippets(repo_root: Path, files: list[Path], *, max_chars: int = 120_000) -> str:
+def _collect_anchor_texts(repo_root: Path, failure_report: dict[str, Any]) -> dict[str, list[str]]:
+    """Literal text snippets, per relative file path, that pinpoint where a
+    failure actually lives — so a huge file can be windowed around the real
+    problem instead of blindly truncated from the top (which silently drops
+    anything past the first ~budget characters, e.g. a break near the bottom
+    of a 9000-line file the fixer would otherwise never see)."""
+    anchors: dict[str, list[str]] = {}
+
+    def add(rel: str, text: str) -> None:
+        if not text.strip():
+            return
+        rel = rel.replace("\\", "/").lstrip("/")
+        anchors.setdefault(rel, []).append(text)
+
+    state_path = repo_root / "devtools" / "state" / "planted_breaks.json"
+    if state_path.is_file():
+        try:
+            state = json.loads(state_path.read_text(encoding="utf-8"))
+            for entry in state.get("breaks") or []:
+                if entry.get("path") and entry.get("broken"):
+                    add(str(entry["path"]), str(entry["broken"]))
+        except (json.JSONDecodeError, OSError):
+            pass
+
+    return anchors
+
+
+def _windowed_excerpt(text: str, anchor_texts: list[str], *, budget: int, window: int = 3000) -> str:
+    """Return `text` unchanged if it fits in budget; otherwise stitch together
+    a header slice plus windows of context around each anchor occurrence,
+    capped to budget. Falls back to a head-truncate if no anchor is found in
+    the file (matches the old, simpler behavior for the common small-file case)."""
+    if len(text) <= budget:
+        return text
+
+    spans: list[tuple[int, int]] = []
+    for anchor in anchor_texts:
+        idx = text.find(anchor)
+        if idx == -1:
+            continue
+        spans.append((max(0, idx - window), min(len(text), idx + len(anchor) + window)))
+
+    header_end = min(1500, budget // 4)
+    if not spans:
+        return text[:budget] + "\n...[truncated — file continues]..."
+
+    spans.append((0, header_end))
+    spans.sort()
+    merged: list[list[int]] = []
+    for start, end in spans:
+        if merged and start <= merged[-1][1]:
+            merged[-1][1] = max(merged[-1][1], end)
+        else:
+            merged.append([start, end])
+
+    pieces: list[str] = []
+    used = 0
+    for start, end in merged:
+        chunk = text[start:end]
+        if used + len(chunk) > budget:
+            chunk = chunk[: max(0, budget - used)]
+        marker = "" if start == 0 else f"\n...[skipped {start} chars]...\n"
+        pieces.append(marker + chunk)
+        used += len(chunk)
+        if used >= budget:
+            break
+    return "".join(pieces)
+
+
+def _read_file_snippets(
+    repo_root: Path,
+    files: list[Path],
+    failure_report: dict[str, Any] | None = None,
+    *,
+    max_chars: int = 220_000,
+    per_file_cap: int = 90_000,
+) -> str:
+    anchors_by_rel = _collect_anchor_texts(repo_root, failure_report or {})
     chunks: list[str] = []
     used = 0
     for path in files:
@@ -281,8 +358,12 @@ def _read_file_snippets(repo_root: Path, files: list[Path], *, max_chars: int = 
             text = path.read_text(encoding="utf-8")
         except OSError:
             continue
-        if used + len(text) > max_chars:
-            text = text[: max(0, max_chars - used)]
+        remaining = max_chars - used
+        if remaining <= 0:
+            break
+        budget = min(per_file_cap, remaining)
+        if len(text) > budget:
+            text = _windowed_excerpt(text, anchors_by_rel.get(rel) or [], budget=budget)
         chunks.append(f"--- FILE: {rel} ---\n{text}\n")
         used += len(text)
         if used >= max_chars:
@@ -309,7 +390,7 @@ def apply_llm_fix(
     if not files:
         return False, "No candidate source files found for LLM fixer.", []
 
-    file_context = _read_file_snippets(repo_root, files)
+    file_context = _read_file_snippets(repo_root, files, failure_report)
     failures = failure_report.get("failures") or []
     rejection_block = ""
     if rejection_reason:
