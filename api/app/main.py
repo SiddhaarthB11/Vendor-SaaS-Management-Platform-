@@ -5590,17 +5590,19 @@ def run_workflow_diagnostics(conn: Connection = Depends(get_connection)) -> dict
         """Poll email logs until at least min_count emails appear or timeout is reached."""
         import httpx as _httpx
         deadline = _time.time() + timeout
+        last_data: list[dict] = []
         while _time.time() < deadline:
             try:
                 r = _httpx.get(f"{BASE}/api/email/logs/{wf_id}", timeout=10)
                 if r.status_code == 200:
                     data = r.json()
+                    last_data = data
                     if len(data) >= min_count:
                         return data
             except Exception:
                 pass
             _time.sleep(1)
-        return []
+        return last_data
 
     def no_uuid(text: str) -> bool:
         import re
@@ -5915,17 +5917,19 @@ def run_it_subscription_test(conn: Connection = Depends(get_connection)):
 
     def emails_for(wf_id: str, min_count: int = 1, timeout: int = 20) -> list[dict]:
         deadline = _time.time() + timeout
+        last_data: list[dict] = []
         while _time.time() < deadline:
             try:
                 r = _httpx.get(f"{BASE}/api/email/logs/{wf_id}", timeout=10)
                 if r.status_code == 200:
                     data = r.json()
+                    last_data = data
                     if len(data) >= min_count:
                         return data
             except Exception:
                 pass
             _time.sleep(1)
-        return []
+        return last_data
 
     try:
         # ── STEP 1: IT admin submits new subscription request ─────────────────
@@ -6431,17 +6435,19 @@ def run_licence_assignment_test(conn: Connection = Depends(get_connection)):
 
     def emails_for(wf_id: str, min_count: int = 1, timeout: int = 20) -> list[dict]:
         deadline = _time.time() + timeout
+        last_data: list[dict] = []
         while _time.time() < deadline:
             try:
                 r = _httpx.get(f"{BASE}/api/email/logs/{wf_id}", timeout=10)
                 if r.status_code == 200:
                     data = r.json()
+                    last_data = data
                     if len(data) >= min_count:
                         return data
             except Exception:
                 pass
             _time.sleep(1)
-        return []
+        return last_data
 
     try:
         # ── SETUP: create a temp subscription to assign a licence against ──────
@@ -6678,17 +6684,19 @@ def run_renewal_test(conn: Connection = Depends(get_connection)):
 
     def emails_for(wf_id: str, min_count: int = 1, timeout: int = 20) -> list[dict]:
         deadline = _time.time() + timeout
+        last_data: list[dict] = []
         while _time.time() < deadline:
             try:
                 r = _httpx.get(f"{BASE}/api/email/logs/{wf_id}", timeout=10)
                 if r.status_code == 200:
                     data = r.json()
+                    last_data = data
                     if len(data) >= min_count:
                         return data
             except Exception:
                 pass
             _time.sleep(1)
-        return []
+        return last_data
 
     try:
         # ── STEP 1: IT admin submits renewal request ───────────────────────────
@@ -6884,17 +6892,19 @@ def run_master_admin_test(conn: Connection = Depends(get_connection)):
 
     def emails_for(wf_id: str, min_count: int = 1, timeout: int = 20) -> list[dict]:
         deadline = _time.time() + timeout
+        last_data: list[dict] = []
         while _time.time() < deadline:
             try:
                 r = _httpx.get(f"{BASE}/api/email/logs/{wf_id}", timeout=10)
                 if r.status_code == 200:
                     data = r.json()
+                    last_data = data
                     if len(data) >= min_count:
                         return data
             except Exception:
                 pass
             _time.sleep(1)
-        return []
+        return last_data
 
     # ── Resolve master admin user at runtime ──────────────────────────────────
     MASTER_EMAIL = None
@@ -7247,17 +7257,19 @@ def run_hr_onboarding_test(conn: Connection = Depends(get_connection)):
 
     def emails_for(wf_id: str, min_count: int = 1, timeout: int = 20) -> list[dict]:
         deadline = _time.time() + timeout
+        last_data: list[dict] = []
         while _time.time() < deadline:
             try:
                 r = _httpx.get(f"{BASE}/api/email/logs/{wf_id}", timeout=10)
                 if r.status_code == 200:
                     data = r.json()
+                    last_data = data
                     if len(data) >= min_count:
                         return data
             except Exception:
                 pass
             _time.sleep(1)
-        return []
+        return last_data
 
     try:
         # SETUP: verify employee person record
