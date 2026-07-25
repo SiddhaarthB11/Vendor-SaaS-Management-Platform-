@@ -365,7 +365,7 @@ def _render_template(template_key: str, ctx: dict[str, str]) -> tuple[str, str]:
         )
     if template_key == "workflow_started":
         return (
-            f"Workflow Started – Request #{ctx['workflow_id']}",
+            f"Request Submitted – Workflow Started #{ctx['workflow_id']}",
             (
                 "Your request has been successfully submitted.\n\n"
                 f"Workflow ID:\n{ctx['workflow_id']}\n\n"
