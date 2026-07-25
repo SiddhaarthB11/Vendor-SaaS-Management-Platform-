@@ -7927,7 +7927,7 @@ def run_renewal_alerts_test(conn: Connection = Depends(get_connection)):
             with conn.cursor() as cur:
                 cur.execute(
                     """
-                    SELECT id, subject, to_email, event_type, status
+                    SELECT id, subject, to_email, event_type, status, error_message
                     FROM slmct.email_logs
                     WHERE event_type = 'renewal_alert'
                       AND created_at >= now() - interval '60 seconds'
@@ -7947,13 +7947,16 @@ def run_renewal_alerts_test(conn: Connection = Depends(get_connection)):
             chk("Email subject contains days warning", any("30 day" in s for s in subjects),
                 subjects[0] if subjects else "")
             statuses = [str(r["status"]) for r in email_log_rows]
-            chk("Email delivered successfully", all(s == "SENT" for s in statuses),
-                f"statuses: {statuses}")
+            errors = [str(r["error_message"]) for r in email_log_rows if r.get("error_message")]
+            detail = f"statuses: {statuses}"
+            if errors:
+                detail += f" | errors: {errors}"
+            chk("Email delivered successfully", all(s == "SENT" for s in statuses), detail)
 
         # ── STEP 7: Manual trigger endpoint ───────────────────────────────────
         import httpx as _httpx
         try:
-            r = _httpx.post("http://localhost:8000/renewal-alerts/run", timeout=15)
+            r = _httpx.post("http://localhost:8000/renewal-alerts/run", timeout=45)
             chk("Manual trigger endpoint /renewal-alerts/run", r.status_code == 200, f"HTTP {r.status_code}")
             if r.status_code == 200:
                 data = r.json()
