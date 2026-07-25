@@ -341,6 +341,58 @@ def _windowed_excerpt(text: str, anchor_texts: list[str], *, budget: int, window
     return "".join(pieces)
 
 
+_DEF_RE = re.compile(r"^\s*def\s+(\w+)\s*\(", re.MULTILINE)
+
+
+def _caller_context(repo_root: Path, rel_path: str, shown_text: str, *, max_functions: int = 6, max_hits_per_fn: int = 4) -> str:
+    """For each function defined in what's actually shown to the fixer, find
+    where else in api/ or ui/ it's called from — a cheap 'blast radius' check.
+
+    Not a real call graph, just `git grep`. The point isn't completeness, it's
+    catching the common case: editing a shared helper without realizing 3
+    other suites depend on its current behavior. If git or grep isn't
+    available for any reason, this degrades to no context, not a crash.
+    """
+    names = _DEF_RE.findall(shown_text)[:max_functions]
+    if not names:
+        return ""
+
+    import subprocess
+
+    lines: list[str] = []
+    for name in names:
+        if len(name) < 4 or name.startswith("_test"):
+            continue  # too short to search meaningfully, or a test-only helper
+        try:
+            result = subprocess.run(
+                ["git", "grep", "-n", "-F", f"{name}(", "--", "api/", "ui/app/"],
+                cwd=repo_root,
+                capture_output=True,
+                text=True,
+                timeout=5,
+            )
+        except (OSError, subprocess.SubprocessError):
+            continue
+        hits = [
+            line
+            for line in (result.stdout or "").splitlines()
+            if not line.startswith(f"{rel_path}:") or f"def {name}(" not in line
+        ]
+        # Drop the definition site itself even when it's in this same file.
+        hits = [h for h in hits if f"def {name}(" not in h]
+        if len(hits) > 1:  # called from somewhere other than just itself
+            shown = hits[:max_hits_per_fn]
+            more = f" (+{len(hits) - len(shown)} more)" if len(hits) > len(shown) else ""
+            lines.append(f"  {name}() referenced at: {'; '.join(shown)}{more}")
+
+    if not lines:
+        return ""
+    return (
+        f"\nCALLERS — before changing behavior in {rel_path}, note these functions "
+        f"are used elsewhere too (not just here):\n" + "\n".join(lines)
+    )
+
+
 def _read_file_snippets(
     repo_root: Path,
     files: list[Path],
@@ -364,7 +416,8 @@ def _read_file_snippets(
         budget = min(per_file_cap, remaining)
         if len(text) > budget:
             text = _windowed_excerpt(text, anchors_by_rel.get(rel) or [], budget=budget)
-        chunks.append(f"--- FILE: {rel} ---\n{text}\n")
+        callers = _caller_context(repo_root, rel, text) if rel.endswith(".py") else ""
+        chunks.append(f"--- FILE: {rel} ---\n{text}\n{callers}\n")
         used += len(text)
         if used >= max_chars:
             break
