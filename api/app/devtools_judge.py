@@ -12,10 +12,15 @@ import httpx
 DEFAULT_BASE_URL = "http://127.0.0.1:8000"
 DEFAULT_TIMEOUT = 900.0
 
+# NOTE: this list must be kept in sync with devtools/judge.py's DIAGNOSTIC_SUITES
+# (the CLI/autofix-loop copy) — they're intentionally duplicated rather than
+# imported across the api/devtools import boundary, but the "slow" flag in
+# particular is load-bearing: it's what keeps ai-test's untimeout-hardened
+# live Gemini calls out of "quick" mode. A drift here silently defeats that.
 DIAGNOSTIC_SUITES: list[dict[str, Any]] = [
     {"name": "workflow", "path": "/api/diagnostics/run-workflow-test"},
     {"name": "it-subscription", "path": "/api/diagnostics/run-it-subscription-test"},
-    {"name": "ai-test", "path": "/api/diagnostics/run-ai-test"},
+    {"name": "ai-test", "path": "/api/diagnostics/run-ai-test", "slow": True, "tags": ["llm"]},
     {"name": "licence-assignment", "path": "/api/diagnostics/run-licence-assignment-test"},
     {"name": "renewal", "path": "/api/diagnostics/run-renewal-test"},
     {"name": "master-admin", "path": "/api/diagnostics/run-master-admin-test"},
@@ -26,8 +31,8 @@ DIAGNOSTIC_SUITES: list[dict[str, Any]] = [
     {"name": "full-lifecycle", "path": "/api/diagnostics/run-full-lifecycle-test"},
     {"name": "slack", "path": "/api/diagnostics/run-slack-test"},
     {"name": "upload-export", "path": "/api/diagnostics/run-upload-export-test"},
-    {"name": "copilot-eval", "path": "/api/diagnostics/run-copilot-eval", "payload": {}, "slow": True},
-    {"name": "operator-eval", "path": "/api/diagnostics/run-operator-eval", "payload": {"skip_llm": True}},
+    {"name": "copilot-eval", "path": "/api/diagnostics/run-copilot-eval", "payload": {}, "slow": True, "tags": ["llm"]},
+    {"name": "operator-eval", "path": "/api/diagnostics/run-operator-eval", "payload": {"skip_llm": True}, "tags": ["llm"]},
 ]
 
 SUITES_BY_NAME = {s["name"]: s for s in DIAGNOSTIC_SUITES}
