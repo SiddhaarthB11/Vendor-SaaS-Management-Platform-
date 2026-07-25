@@ -6254,11 +6254,14 @@ This Master Service Agreement governs the use of Adobe Creative Cloud Enterprise
         chk("AI Copilot: endpoint responds", False, str(e))
 
     # ── 4. WORKFLOW REVIEW — all 5 roles ─────────────────────────────────────
+    # Always create a dedicated workflow for this check rather than reusing
+    # "the most recent workflow for the org" — that was racy against other
+    # suites' self-cleanup running concurrently or shortly after, which could
+    # delete the borrowed row between this lookup and the actual review call,
+    # producing a 404 that had nothing to do with the AI reviewer itself.
     ai_review_wf_id = None
     try:
-        with conn.cursor() as cur:
-            cur.execute("SELECT id FROM slmct.workflow_requests WHERE organisation_id = %s ORDER BY created_at DESC LIMIT 1", (ORG_ID,))
-            wf_row = cur.fetchone()
+        wf_row = None
 
         if not wf_row:
             # Create a minimal workflow request so the AI reviewer has something to analyse
