@@ -9254,6 +9254,17 @@ def devtools_status(conn: Connection = Depends(get_connection)) -> dict:
     return panel_status(conn)
 
 
+@app.get("/api/devtools/metrics")
+def devtools_metrics(limit: int = 50, conn: Connection = Depends(get_connection)) -> dict:
+    """Aggregate outcomes across recent autofix runs — repair rate, reviewer
+    approval rate, attempts/tasks per run — computed from job history already
+    in Postgres. Lets architecture changes be judged by a number instead of
+    a vibe."""
+    from app.devtools_panel import compute_autofix_metrics
+
+    return compute_autofix_metrics(conn, limit=max(1, min(limit, 200)))
+
+
 @app.get("/api/devtools/jobs")
 def devtools_list_jobs(
     limit: int = 20,

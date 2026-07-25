@@ -457,3 +457,86 @@ def panel_status(conn: Connection) -> dict[str, Any]:
         "planted_breaks": break_state,
         "suites": __import__("app.devtools_judge", fromlist=["list_suites"]).list_suites(include_slow=True),
     }
+
+
+def compute_autofix_metrics(conn: Connection, *, limit: int = 50) -> dict[str, Any]:
+    """Aggregate outcomes across recent autofix runs from job history already
+    sitting in Postgres — no new instrumentation, just reading what
+    run_panel_autofix already records in devtools_jobs.report.
+
+    This exists so architecture changes can be evaluated with a number
+    instead of a vibe: e.g. "did tightening the clustering heuristic actually
+    raise the per-task repair rate, or just move the same outcomes around."
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT id, status, report, created_at, finished_at
+            FROM slmct.devtools_jobs
+            WHERE kind = 'autofix' AND report IS NOT NULL
+            ORDER BY created_at DESC
+            LIMIT %s
+            """,
+            (limit,),
+        )
+        rows = cur.fetchall()
+
+    runs_total = len(rows)
+    runs_pass = 0
+    task_outcomes: dict[str, int] = {}
+    attempts_per_run: list[int] = []
+    tasks_per_run: list[int] = []
+    run_summaries: list[dict[str, Any]] = []
+
+    for row in rows:
+        report = row.get("report") or {}
+        overall = report.get("overall")
+        if overall == "pass":
+            runs_pass += 1
+        attempts = report.get("attempts") or []
+        attempts_per_run.append(len(attempts))
+
+        run_task_count = 0
+        for attempt in attempts:
+            tasks = attempt.get("tasks")
+            if tasks is None:
+                # Pre-redesign job shape (one bundled attempt, no per-task list) —
+                # count it as a single legacy task so old runs aren't dropped
+                # from the attempts/committed-rate stats, just excluded from
+                # the per-task outcome breakdown.
+                run_task_count += 1
+                continue
+            for task in tasks:
+                outcome = str(task.get("outcome") or "unknown")
+                task_outcomes[outcome] = task_outcomes.get(outcome, 0) + 1
+                run_task_count += 1
+        tasks_per_run.append(run_task_count)
+
+        run_summaries.append(
+            {
+                "id": str(row["id"]),
+                "status": row.get("status"),
+                "overall": overall,
+                "attempts": len(attempts),
+                "tasks": run_task_count,
+                "branch": report.get("branch"),
+                "created_at": row["created_at"].isoformat() if row.get("created_at") else None,
+            }
+        )
+
+    committed = task_outcomes.get("committed", 0)
+    rejected = task_outcomes.get("rejected", 0)
+    reviewed = committed + rejected
+    total_tasks = sum(task_outcomes.values())
+
+    return {
+        "runs_analyzed": runs_total,
+        "runs_passed": runs_pass,
+        "run_pass_rate": round(runs_pass / runs_total, 3) if runs_total else None,
+        "avg_attempts_per_run": round(sum(attempts_per_run) / len(attempts_per_run), 2) if attempts_per_run else None,
+        "avg_tasks_per_run": round(sum(tasks_per_run) / len(tasks_per_run), 2) if tasks_per_run else None,
+        "task_outcomes": task_outcomes,
+        "task_repair_rate": round(committed / total_tasks, 3) if total_tasks else None,
+        "reviewer_approval_rate": round(committed / reviewed, 3) if reviewed else None,
+        "recent_runs": run_summaries,
+    }

@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir --trusted-host pypi.org --trusted-host pypi.pytho
 COPY api /app/api
 COPY db /app/db
 COPY devtools /app/devtools
+COPY .gitignore /app/.gitignore
 COPY infra/api-entrypoint.sh /app/infra/api-entrypoint.sh
 
 RUN chmod +x /app/infra/api-entrypoint.sh

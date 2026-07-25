@@ -8,20 +8,34 @@ actual shared root cause first means each repair task can be fixed, reviewed,
 and committed independently: a rejection only costs that one task's attempt,
 never a sibling task's already-approved fix.
 
-This is intentionally simple — no embeddings, no ML. Two strong, cheap
-signals are enough for this codebase's failure shapes:
+This is intentionally simple — no embeddings, no ML, no filesystem access.
+Three cheap signals, strongest first:
   1. Shared planted_break_id (when present) is a near-certain same-root-cause
      signal — Judge already correlates failures to the break that caused them.
-  2. Otherwise, group by suite: within one suite, a cluster of failing checks
-     is usually one underlying bug cascading through that suite's assertions,
-     not several independent bugs.
-Tasks are ordered smallest/most-confident first — the planted_break_id
-clusters (a strong, narrow signal) go before the murkier suite-only ones.
+  2. Otherwise, within a suite, group by "topic" — the prefix before the first
+     colon in the check name (e.g. "Finance: IT procurement email" and
+     "Finance: finance confirmation email" share topic "finance"). This
+     naming convention already exists consistently across every diagnostic
+     suite's checks (Submit:, Finance:, Downstream:, Completion:, ...), so
+     it's a real, free signal for "these failures likely share a root cause"
+     without inventing new machinery — and it's meaningfully finer-grained
+     than suite alone, which would otherwise bundle unrelated bugs that
+     happen to live in the same suite back into one task.
+  3. Checks with no colon in the name fall back to one task per suite.
+Tasks are ordered smallest/most-confident first — planted_break_id clusters
+go before topic clusters, which go before the coarse suite-only fallback.
 """
 
 from __future__ import annotations
 
 from typing import Any
+
+
+def _topic(check_name: str) -> str | None:
+    if ":" not in check_name:
+        return None
+    prefix = check_name.split(":", 1)[0].strip().lower()
+    return prefix or None
 
 
 def cluster_failures(failure_report: dict[str, Any]) -> list[dict[str, Any]]:
@@ -38,10 +52,15 @@ def cluster_failures(failure_report: dict[str, Any]) -> list[dict[str, Any]]:
         else:
             unattributed.append(f)
 
-    by_suite: dict[str, list[dict[str, Any]]] = {}
+    by_suite_topic: dict[tuple[str, str], list[dict[str, Any]]] = {}
+    by_suite_only: dict[str, list[dict[str, Any]]] = {}
     for f in unattributed:
         suite = str(f.get("suite") or "unknown")
-        by_suite.setdefault(suite, []).append(f)
+        topic = _topic(str(f.get("check") or ""))
+        if topic:
+            by_suite_topic.setdefault((suite, topic), []).append(f)
+        else:
+            by_suite_only.setdefault(suite, []).append(f)
 
     tasks: list[dict[str, Any]] = []
 
@@ -56,18 +75,30 @@ def cluster_failures(failure_report: dict[str, Any]) -> list[dict[str, Any]]:
             }
         )
 
-    for suite, group in by_suite.items():
+    for (suite, topic), group in by_suite_topic.items():
+        tasks.append(
+            {
+                "task_id": f"topic:{suite}:{topic}",
+                "failures": group,
+                "suites": [suite],
+                "confidence": "medium-high",
+                "reason": f"co-failing checks sharing topic '{topic}:' within suite={suite}",
+            }
+        )
+
+    for suite, group in by_suite_only.items():
         tasks.append(
             {
                 "task_id": f"suite:{suite}",
                 "failures": group,
                 "suites": [suite],
                 "confidence": "medium",
-                "reason": f"co-failing checks within suite={suite}, no shared break id",
+                "reason": f"co-failing checks within suite={suite}, no shared break id or check topic",
             }
         )
 
-    tasks.sort(key=lambda t: (0 if t["confidence"] == "high" else 1, len(t["failures"])))
+    confidence_rank = {"high": 0, "medium-high": 1, "medium": 2}
+    tasks.sort(key=lambda t: (confidence_rank.get(t["confidence"], 3), len(t["failures"])))
     return tasks
 
 
