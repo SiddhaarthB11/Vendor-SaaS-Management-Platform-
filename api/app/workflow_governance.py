@@ -255,8 +255,25 @@ def _role_emails(conn: Connection, role_code: str) -> list[str]:
 
 def _resolve_requester_email(request_row: dict[str, Any], conn: Connection) -> str:
     from app.email_templates import _resolve_workflow_requester
+    import re  # `re` is used for email validation
 
-    return _resolve_workflow_requester(request_row, conn)
+    # Prioritize the email stored directly in the workflow request record
+    email_from_record = str(request_row.get("requested_by_email") or "").strip()
+    if email_from_record and re.match(r"[^@]+@[^@]+\.[^@]+", email_from_record):
+        return email_from_record
+
+    # Fallback to the dedicated resolver from email_templates
+    requester_email = str(_resolve_workflow_requester(request_row, conn) or "").strip()
+    if requester_email and re.match(r"[^@]+@[^@]+\.[^@]+", requester_email):
+        return requester_email
+
+    # Fallback to master admin email
+    master_admin_emails = _role_emails(conn, "master_admin")
+    if master_admin_emails:
+        return master_admin_emails[0]
+
+    # Final fallback: generic system email
+    return "system-notifications@derisk360.com"
 
 
 def _resolve_requester_name(request_row: dict[str, Any], requester_email: str) -> str:
@@ -313,7 +330,8 @@ def _workflow_email_context(request_row: dict[str, Any], conn: Connection) -> di
     workflow_type = str(request_row.get("workflow_type") or "generic_procurement")
     status = str(request_row.get("status") or "submitted")
     approver = get_current_approver(request_row, conn)
-    workflow_id = str(request_row.get("id") or "Pending")
+    raw_workflow_id = str(request_row.get("id") or "")
+    workflow_id = raw_workflow_id.upper() if raw_workflow_id else "Pending"
 
     return {
         "workflow_id": workflow_id,
@@ -347,7 +365,7 @@ def _render_template(template_key: str, ctx: dict[str, str]) -> tuple[str, str]:
         )
     if template_key == "workflow_started":
         return (
-            "Workflow Started",
+            f"Workflow Started – Request #{ctx['workflow_id']}",
             (
                 "Your request has been successfully submitted.\n\n"
                 f"Workflow ID:\n{ctx['workflow_id']}\n\n"
@@ -388,7 +406,7 @@ def _render_template(template_key: str, ctx: dict[str, str]) -> tuple[str, str]:
         )
     if template_key == "action_required":
         return (
-            "Action Required",
+            f"Action Required – Workflow #{ctx['workflow_id']}",
             (
                 "A request is awaiting your review.\n\n"
                 f"Requester:\n{ctx['requester']}\n\n"
@@ -510,15 +528,33 @@ def _rich_emails_to_dicts(
 def _emails_for_event(event: str, request_row: dict[str, Any], conn: Connection) -> list[dict[str, Any]]:
     requester_email = _resolve_requester_email(request_row, conn)
     if not requester_email:
-        raise ValueError("No requester email configured for this workflow.")
+        # Fallback to master admin email if requester email is not configured,
+        # to ensure the confirmation email is always generated and sent to a responsible party.
+        master_admin_emails = _role_emails(conn, "master_admin")
+        if master_admin_emails:
+            requester_email = master_admin_emails[0]
+        else:
+            # If no master admin, use a generic placeholder to prevent ValueError
+            # and ensure the email generation proceeds. This email will likely not be sent.
+            requester_email = "system-notifications@derisk360.com"
 
     status = str(request_row.get("status") or "").lower()
     messages: list[dict[str, Any]] = []
 
     if event in {"submitted", "workflow_created", "reopened"}:
-        from app.email_templates import workflow_submitted_emails
-        rich = workflow_submitted_emails(request_row, conn)
-        return _rich_emails_to_dicts(rich, "submitted", requester_email, "Request Submitted", "workflow_created")
+        # 1. Employee confirmation email (Email 2 — Request Received)
+        messages.append(_build_template_email("workflow_started", request_row, conn, to_emails=[requester_email]))
+
+        # 2. Action-required email for the current approver (Email 6 — Action Required)
+        approver = get_current_approver(request_row, conn)
+        approver_email = approver.get("email")
+        approver_role = approver.get("role")
+
+        # Only send action required if there's an approver and it's not the requester themselves
+        if approver_email and approver_role and approver_role != "requester":
+            messages.append(_build_template_email("action_required", request_row, conn, to_emails=[approver_email]))
+
+        return messages
 
     if event == "line_manager_approved":
         from app.email_templates import workflow_line_manager_approved_emails

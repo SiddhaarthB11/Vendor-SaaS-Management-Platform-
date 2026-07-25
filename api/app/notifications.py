@@ -210,17 +210,21 @@ class SmtpConfig:
 
         outlook_providers = {"outlook", "office365", "microsoft365", "m365", "outlook-personal", "hotmail", "live"}
         gmail_providers = {"gmail", "google"}
-        if not from_address or from_address.endswith("@derisk360.local") or from_address.endswith("@demo.derisk360.com"):
-            if user:
-                from_address = user
-            elif provider not in outlook_providers and provider not in gmail_providers:
-                from_address = from_address or "no-reply@derisk360.local"
-            else:
-                from_address = user
-        if provider in outlook_providers and user:
-            from_address = user
-        if provider in gmail_providers and user:
-            from_address = user or from_address
+        # Determine the 'from_address' based on environment variables and provider.
+        # Prioritize SMTP_FROM if it's a valid-looking email.
+        # Otherwise, try SMTP_USER if it's a valid-looking email.
+        # Fallback to a default if neither is suitable.
+
+        candidate_from_address = os.environ.get("SMTP_FROM", "").strip()
+        candidate_user_email = user if "@" in user else ""  # Only consider user as email if it contains '@'
+
+        if candidate_from_address and "@" in candidate_from_address and \
+           not (candidate_from_address.endswith("@derisk360.local") or candidate_from_address.endswith("@demo.derisk360.com")):
+            from_address = candidate_from_address
+        elif candidate_user_email:
+            from_address = candidate_user_email
+        else:
+            from_address = "no-reply@derisk360.com"
 
         return cls(
             host=host,
