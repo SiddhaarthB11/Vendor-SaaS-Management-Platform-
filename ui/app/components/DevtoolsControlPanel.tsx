@@ -538,21 +538,51 @@ export default function DevtoolsControlPanel({
           {attempts && attempts.length > 0 ? (
             <div style={{ marginTop: 12 }}>
               <strong>Autofix attempts</strong>
-              {attempts.map((a, i) => (
-                <div key={i} style={{ fontSize: 13, marginTop: 8, padding: 8, background: "rgba(0,0,0,0.2)", borderRadius: 6 }}>
-                  <div>Attempt {String(a.attempt)} — judge: {String(a.judge_overall)}</div>
-                  {(a.review as { approve?: boolean; reason?: string })?.reason ? (
-                    <div style={{ marginTop: 4, color: "var(--text-secondary)" }}>
-                      Review: {(a.review as { approve?: boolean; reason?: string }).reason}
-                    </div>
-                  ) : null}
-                  {typeof a.fixer_output === "string" && a.fixer_output ? (
-                    <div style={{ marginTop: 4, color: "var(--text-secondary)", fontSize: 12 }}>
-                      {(a.fixer_output as string).slice(0, 200)}
-                    </div>
-                  ) : null}
-                </div>
-              ))}
+              {attempts.map((a, i) => {
+                const tasks = a.tasks as
+                  | Array<{
+                      task_id?: string;
+                      suites?: string[];
+                      confidence?: string;
+                      outcome?: string;
+                      skip_reason?: string;
+                      review?: { approve?: boolean; reason?: string };
+                    }>
+                  | undefined;
+                return (
+                  <div key={i} style={{ fontSize: 13, marginTop: 8, padding: 8, background: "rgba(0,0,0,0.2)", borderRadius: 6 }}>
+                    <div>Attempt {String(a.attempt)} — judge: {String(a.judge_overall)}</div>
+                    {tasks && tasks.length > 0 ? (
+                      <div style={{ marginTop: 6 }}>
+                        {tasks.map((t, ti) => {
+                          const color =
+                            t.outcome === "committed" ? "#86efac" : t.outcome === "rejected" ? "#fca5a5" : "#fdba74";
+                          return (
+                            <div key={ti} style={{ marginTop: ti === 0 ? 0 : 6, paddingLeft: 8, borderLeft: `2px solid ${color}` }}>
+                              <div>
+                                <strong>{t.task_id}</strong>{" "}
+                                <span style={{ color }}>{t.outcome}</span>{" "}
+                                <span style={{ color: "var(--text-secondary)", fontSize: 12 }}>
+                                  ({t.suites?.join(", ")} · confidence: {t.confidence})
+                                </span>
+                              </div>
+                              {t.review?.reason ? (
+                                <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>{t.review.reason}</div>
+                              ) : t.skip_reason ? (
+                                <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>{t.skip_reason}</div>
+                              ) : null}
+                            </div>
+                          );
+                        })}
+                      </div>
+                    ) : typeof a.fixer_output === "string" && a.fixer_output ? (
+                      <div style={{ marginTop: 4, color: "var(--text-secondary)", fontSize: 12 }}>
+                        {(a.fixer_output as string).slice(0, 200)}
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
             </div>
           ) : null}
           {typeof report?.note === "string" ? (

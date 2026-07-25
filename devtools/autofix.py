@@ -159,8 +159,6 @@ def run_autofix_loop_report(
 
     _emit(on_progress, {"phase": "branch", "branch": branch, "from": original_branch})
 
-    rejection_reason: str | None = None
-
     for attempt in range(1, max_attempts + 1):
         report_path = git.state_dir / f"judge_report_attempt_{attempt}.json"
         _emit(on_progress, {"phase": "judge", "attempt": attempt, "max_attempts": max_attempts})
@@ -212,77 +210,141 @@ def run_autofix_loop_report(
                 "dry_run": True,
             }
 
-        prompt = build_fixer_prompt(
-            failure_report=report,
-            git_diff_main=git.diff_vs_base(),
-            rejection_reason=rejection_reason,
-            attempt=attempt,
-        )
-        prompt += _planted_break_hint(root, report)
-
-        _emit(on_progress, {"phase": "fixer", "attempt": attempt})
-        print("[autofix] invoking fixer...", flush=True)
-        fixer_ok, fixer_output = invoke_fixer(
-            prompt,
-            repo_root=root,
-            failure_report=report,
-            rejection_reason=rejection_reason,
-            attempt=attempt,
-        )
-        (git.state_dir / f"fixer_output_attempt_{attempt}.txt").write_text(fixer_output, encoding="utf-8")
-        attempt_row["fixer_ok"] = fixer_ok
-        attempt_row["fixer_output"] = fixer_output[:4000]
-        print(fixer_output[:2000], flush=True)
-
-        if not git.has_local_changes():
-            attempt_row["stopped"] = "fixer produced no file changes"
-            attempts.append(attempt_row)
-            _emit(on_progress, {"phase": "fixer_done", "attempt": attempt, "changed": False, "attempts": attempts})
-            break
-
-        diff = git.diff_staged_and_worktree()
-        _emit(on_progress, {"phase": "review", "attempt": attempt})
-        print("[autofix] running reviewer...", flush=True)
-        from devtools.reviewer import review_fix
-
-        review = review_fix(failure_report=report, git_diff=diff)
-        (git.state_dir / f"review_attempt_{attempt}.json").write_text(
-            json.dumps(review, indent=2),
-            encoding="utf-8",
-        )
-        attempt_row["review"] = review
-        print(
-            f"[autofix] reviewer: approve={review.get('approve')} — {review.get('reason', '')[:300]}",
-            flush=True,
+        from devtools.failure_clustering import cluster_failures, task_failure_report
+        from devtools.repair_memory import (
+            already_tried_diff,
+            prior_attempts_context,
+            record_attempt,
+            signature_for,
         )
 
-        if not review.get("approve"):
-            rejection_reason = str(review.get("reason") or "Reviewer rejected the fix.")
-            git.revert_worktree()
-            attempt_row["reverted"] = True
-            attempts.append(attempt_row)
-            _emit(on_progress, {"phase": "review_rejected", "attempt": attempt, "attempts": attempts})
-            print("[autofix] reverted unapproved changes; retrying fixer with rejection reason", flush=True)
-            continue
+        tasks = cluster_failures(report)
+        max_tasks = int(os.environ.get("AUTOFIX_MAX_TASKS_PER_CYCLE", "6"))
+        tasks = tasks[:max_tasks]
+        task_plan = [
+            {"task_id": t["task_id"], "suites": t["suites"], "confidence": t["confidence"], "num_failures": len(t["failures"])}
+            for t in tasks
+        ]
+        attempt_row["task_plan"] = task_plan
+        attempt_row["tasks"] = []
+        _emit(on_progress, {"phase": "plan", "attempt": attempt, "task_plan": task_plan})
+        print(f"[autofix] planned {len(tasks)} repair task(s): {[t['task_id'] for t in tasks]}", flush=True)
 
-        _emit(on_progress, {"phase": "commit", "attempt": attempt})
-        committed, commit_err = git.commit_all(f"autofix attempt {attempt}")
-        if not committed:
-            attempt_row["stopped"] = commit_err or "commit failed"
-            attempts.append(attempt_row)
-            _emit(on_progress, {"phase": "commit_failed", "attempt": attempt, "attempts": attempts})
-            break
+        any_committed = False
+        for task_index, task in enumerate(tasks, 1):
+            task_id = task["task_id"]
+            task_report = task_failure_report(report, task)
+            signatures = sorted({signature_for(f) for f in task["failures"]})
+            primary_signature = signatures[0] if signatures else task_id
+            safe_task_id = task_id.replace(":", "_").replace("/", "_")
 
-        rejection_reason = None
-        attempt_row["committed"] = True
+            memory_context = "\n".join(prior_attempts_context(root, sig) for sig in signatures).strip()
+
+            task_prompt = build_fixer_prompt(
+                failure_report=task_report,
+                git_diff_main=git.diff_vs_base(),
+                rejection_reason=memory_context or None,
+                attempt=attempt,
+            )
+            task_prompt += _planted_break_hint(root, task_report)
+
+            _emit(on_progress, {"phase": "fixer", "attempt": attempt, "task": task_id})
+            print(f"[autofix] task {task_index}/{len(tasks)} ({task_id}): invoking fixer...", flush=True)
+            fixer_ok, fixer_output = invoke_fixer(
+                task_prompt,
+                repo_root=root,
+                failure_report=task_report,
+                rejection_reason=memory_context or None,
+                attempt=attempt,
+            )
+            (git.state_dir / f"fixer_output_attempt_{attempt}_{safe_task_id}.txt").write_text(
+                fixer_output, encoding="utf-8"
+            )
+            task_row: dict[str, Any] = {
+                "task_id": task_id,
+                "suites": task["suites"],
+                "confidence": task["confidence"],
+                "fixer_ok": fixer_ok,
+                "fixer_output": fixer_output[:2000],
+            }
+            print(fixer_output[:800], flush=True)
+
+            if not git.has_local_changes():
+                task_row["outcome"] = "no_change"
+                for sig in signatures:
+                    record_attempt(root, sig, diff="", outcome="no_change", reason="fixer produced no file changes")
+                attempt_row["tasks"].append(task_row)
+                continue
+
+            diff = git.diff_staged_and_worktree()
+
+            repeat = already_tried_diff(root, primary_signature, diff)
+            if repeat:
+                task_row["outcome"] = "skipped_repeat"
+                task_row["skip_reason"] = f"identical diff already tried (outcome={repeat.get('outcome')}) — not retrying blind"
+                git.revert_worktree()
+                attempt_row["tasks"].append(task_row)
+                print(f"[autofix] task {task_index}/{len(tasks)} ({task_id}): {task_row['skip_reason']}", flush=True)
+                continue
+
+            _emit(on_progress, {"phase": "review", "attempt": attempt, "task": task_id})
+            print(f"[autofix] task {task_index}/{len(tasks)} ({task_id}): running reviewer...", flush=True)
+            from devtools.reviewer import review_fix
+
+            review = review_fix(failure_report=task_report, git_diff=diff)
+            (git.state_dir / f"review_attempt_{attempt}_{safe_task_id}.json").write_text(
+                json.dumps(review, indent=2), encoding="utf-8"
+            )
+            task_row["review"] = review
+            print(
+                f"[autofix] task {task_index}/{len(tasks)} ({task_id}): approve={review.get('approve')} — "
+                f"{review.get('reason', '')[:200]}",
+                flush=True,
+            )
+
+            if not review.get("approve"):
+                reason = str(review.get("reason") or "Reviewer rejected the fix.")
+                git.revert_worktree()
+                task_row["outcome"] = "rejected"
+                for sig in signatures:
+                    record_attempt(root, sig, diff=diff, outcome="rejected", reason=reason)
+                attempt_row["tasks"].append(task_row)
+                continue
+
+            committed, commit_err = git.commit_all(f"autofix attempt {attempt} — {task_id}")
+            if not committed:
+                task_row["outcome"] = "commit_failed"
+                task_row["commit_err"] = commit_err
+                attempt_row["tasks"].append(task_row)
+                continue
+
+            task_row["outcome"] = "committed"
+            any_committed = True
+            for sig in signatures:
+                record_attempt(root, sig, diff=diff, outcome="fixed", reason="approved and committed")
+            attempt_row["tasks"].append(task_row)
+
+            reload_wait = int(os.environ.get("AUTOFIX_RELOAD_WAIT_SEC", "4"))
+            if reload_wait > 0:
+                import time
+
+                print(f"[autofix] waiting {reload_wait}s for API hot reload...", flush=True)
+                time.sleep(reload_wait)
+
+        attempt_row["committed"] = any_committed
+        attempt_row["fixer_ok"] = any(t.get("fixer_ok") for t in attempt_row["tasks"])
+        attempt_row["fixer_output"] = "\n---\n".join(
+            f"[{t['task_id']}] {t.get('outcome')}: {(t.get('fixer_output') or '')[:300]}"
+            for t in attempt_row["tasks"]
+        )[:4000]
         attempts.append(attempt_row)
         _emit(on_progress, {"phase": "attempt_done", "attempt": attempt, "attempts": attempts})
-        reload_wait = int(os.environ.get("AUTOFIX_RELOAD_WAIT_SEC", "4"))
-        if reload_wait > 0:
-            import time
 
-            print(f"[autofix] waiting {reload_wait}s for API hot reload...", flush=True)
-            time.sleep(reload_wait)
+        if not any_committed:
+            # Every task this cycle was a no-op, a repeat, or rejected — nothing
+            # changed on disk, so re-running judge would just reproduce the same
+            # failure report. Stop instead of burning the remaining budget.
+            break
 
     final_judge = run_judge(base_url=base_url, quick=quick_judge)
     overall = final_judge.get("overall") or "fail"
