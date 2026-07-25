@@ -331,7 +331,7 @@ def _workflow_email_context(request_row: dict[str, Any], conn: Connection) -> di
     status = str(request_row.get("status") or "submitted")
     approver = get_current_approver(request_row, conn)
     raw_workflow_id = str(request_row.get("id") or "")
-    workflow_id = raw_workflow_id.upper() if raw_workflow_id else "Pending"
+    workflow_id = raw_workflow_id[:8].upper() if raw_workflow_id else "Pending"
 
     return {
         "workflow_id": workflow_id,
