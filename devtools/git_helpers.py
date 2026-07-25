@@ -105,7 +105,17 @@ def has_commits(repo_root: Path) -> bool:
 
 
 def has_changes(repo_root: Path) -> bool:
-    return bool(run_git(repo_root, ["status", "--porcelain"], check=False).stdout.strip())
+    """True if the working tree has changes outside devtools/state/ — every
+    judge + autofix run leaves untracked debug artifacts there by design
+    (fixer_output_*.txt, judge_report_*.json, ...), so a blanket
+    `git status --porcelain` would always look dirty and permanently block
+    the merge-from-panel action after every single autofix run."""
+    out = run_git(repo_root, ["status", "--porcelain"], check=False).stdout
+    for line in out.splitlines():
+        path = line[3:].strip().strip('"')
+        if not path.startswith("devtools/state/"):
+            return True
+    return False
 
 
 def default_diff_base(repo_root: Path) -> str:

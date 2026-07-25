@@ -85,17 +85,28 @@ export default function DevtoolsControlPanel({
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const data: PanelStatus = await r.json();
       setStatus(data);
-      const latest =
+      const running =
         data.latest_autofix?.status === "queued" || data.latest_autofix?.status === "running"
           ? data.latest_autofix
           : data.latest_judge?.status === "queued" || data.latest_judge?.status === "running"
             ? data.latest_judge
             : null;
-      if (latest) {
-        setActiveJob(latest);
-        setBusy(latest.kind);
+      if (running) {
+        setActiveJob(running);
+        setBusy(running.kind);
       } else {
         setBusy("");
+        // No job running right now — still show the most recently FINISHED autofix
+        // job (if newer than the last judge run) so its result, including the
+        // merge button, survives a page refresh instead of vanishing the moment
+        // nothing is actively in progress.
+        const lastFinishedAutofix = data.latest_autofix ?? null;
+        const lastFinishedJudge = data.latest_judge ?? null;
+        if (lastFinishedAutofix && (!lastFinishedJudge || (lastFinishedAutofix.created_at ?? "") >= (lastFinishedJudge.created_at ?? ""))) {
+          setActiveJob(lastFinishedAutofix);
+        } else if (lastFinishedJudge) {
+          setActiveJob(lastFinishedJudge);
+        }
       }
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : String(e));
@@ -552,39 +563,49 @@ export default function DevtoolsControlPanel({
               Cleanup: removed {(report?.cleanup as { total_rows?: number }).total_rows} diagnostic row(s)
             </p>
           ) : null}
-          {activeJob.kind === "autofix" &&
-          activeJob.status === "completed" &&
-          report?.overall === "pass" &&
-          branch ? (
-            <div
-              style={{
-                marginTop: 16,
-                padding: 14,
-                borderRadius: 8,
-                background: "rgba(34,197,94,0.08)",
-                border: "1px solid rgba(34,197,94,0.35)",
-              }}
-            >
-              <p style={{ margin: "0 0 10px", fontSize: 14, color: "#86efac" }}>
-                All tests passing on <strong>{branch}</strong>. Review the diff, then merge into main —
-                this is the only step that changes your main branch, and it only happens when you click it.
-              </p>
-              <button
-                type="button"
-                disabled={!!busy}
-                onClick={() => void mergeBranch(branch)}
-                style={{ background: "rgba(34,197,94,0.18)", border: "1px solid rgba(34,197,94,0.5)", color: "#bbf7d0" }}
+          {(() => {
+            if (activeJob.kind !== "autofix" || !branch) return null;
+            if (activeJob.status !== "completed" && activeJob.status !== "failed") return null;
+            const hasCommit = !!attempts?.some((a) => a.committed === true);
+            if (!hasCommit) return null;
+            const clean = report?.overall === "pass";
+            return (
+              <div
+                style={{
+                  marginTop: 16,
+                  padding: 14,
+                  borderRadius: 8,
+                  background: clean ? "rgba(34,197,94,0.08)" : "rgba(234,179,8,0.08)",
+                  border: clean ? "1px solid rgba(34,197,94,0.35)" : "1px solid rgba(234,179,8,0.35)",
+                }}
               >
-                {busy === "merge" ? "Merging…" : `✓ Merge ${branch} into main`}
-              </button>
-              {mergeResult && mergeResult.branch === branch ? (
-                <p style={{ margin: "10px 0 0", fontSize: 13, color: mergeResult.merged ? "#86efac" : "#fca5a5" }}>
-                  {mergeResult.merged ? "✓ " : "✗ "}
-                  {mergeResult.message}
+                <p style={{ margin: "0 0 10px", fontSize: 14, color: clean ? "#86efac" : "#fde68a" }}>
+                  {clean
+                    ? <>All tests passing on <strong>{branch}</strong>.</>
+                    : <>Autofix did not reach a clean pass, but <strong>{branch}</strong> has committed changes from approved attempts — some fixes may still be genuine progress. Review the diff carefully before merging.</>}{" "}
+                  This is the only step that changes your main branch, and it only happens when you click it.
                 </p>
-              ) : null}
-            </div>
-          ) : null}
+                <button
+                  type="button"
+                  disabled={!!busy}
+                  onClick={() => void mergeBranch(branch)}
+                  style={
+                    clean
+                      ? { background: "rgba(34,197,94,0.18)", border: "1px solid rgba(34,197,94,0.5)", color: "#bbf7d0" }
+                      : { background: "rgba(234,179,8,0.18)", border: "1px solid rgba(234,179,8,0.5)", color: "#fde68a" }
+                  }
+                >
+                  {busy === "merge" ? "Merging…" : `${clean ? "✓" : "⚠"} Merge ${branch} into main`}
+                </button>
+                {mergeResult && mergeResult.branch === branch ? (
+                  <p style={{ margin: "10px 0 0", fontSize: 13, color: mergeResult.merged ? "#86efac" : "#fca5a5" }}>
+                    {mergeResult.merged ? "✓ " : "✗ "}
+                    {mergeResult.message}
+                  </p>
+                ) : null}
+              </div>
+            );
+          })()}
         </div>
       ) : null}
     </section>
