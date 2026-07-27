@@ -88,6 +88,40 @@ def _emit(on_progress: Callable[[dict[str, Any]], None] | None, event: dict[str,
         on_progress(event)
 
 
+# Functions where a diff is structurally risky even if the Reviewer approves
+# it: they define classification/routing logic that governs every future row
+# or request of a given type, not just the one failing case. A real example
+# from this project: an autofix attempt "fixed" a stuck hr-onboarding workflow
+# by making resolve_workflow_type() reclassify hr_onboarding_request as
+# license_assignment_request going forward — approved by the Reviewer because
+# it read as plausible, but it silently changed how EVERY future HR onboarding
+# request would be categorized. This is a cheap, non-AI static check — not a
+# substitute for reviewer judgment, a second signal surfaced alongside it so
+# a human sees the risk before merging even if the Reviewer approved anyway.
+SENSITIVE_FUNCTIONS: tuple[str, ...] = (
+    "resolve_workflow_type",
+    "finance_validation_statuses",
+    "requires_line_manager",
+    "get_current_approver",
+    "WORKFLOW_TYPES",
+)
+
+# Variable/branch names that suggest a diff is compensating for an earlier
+# change rather than fixing or reverting it (see reviewer.py's matching rule).
+COMPENSATING_NAME_HINTS: tuple[str, ...] = ("original_", "legacy_", "real_")
+
+
+def _sensitive_touch_flags(diff: str) -> list[str]:
+    flags: list[str] = []
+    for name in SENSITIVE_FUNCTIONS:
+        if name in diff:
+            flags.append(f"touches sensitive function/constant: {name}")
+    for hint in COMPENSATING_NAME_HINTS:
+        if hint in diff:
+            flags.append(f"introduces a '{hint}*' variable — possible workaround for an earlier change rather than a fix")
+    return flags
+
+
 def _planted_break_hint(repo_root: Path, failure_report: dict[str, Any]) -> str:
     """If demo breaks are active, tell the fixer to restore known originals."""
     state_path = repo_root / "devtools" / "state" / "planted_breaks.json"
@@ -277,6 +311,10 @@ def run_autofix_loop_report(
                 continue
 
             diff = git.diff_staged_and_worktree()
+            sensitive_flags = _sensitive_touch_flags(diff)
+            if sensitive_flags:
+                task_row["sensitive_flags"] = sensitive_flags
+                print(f"[autofix] task {task_index}/{len(tasks)} ({task_id}): ⚠ {'; '.join(sensitive_flags)}", flush=True)
 
             repeat = already_tried_diff(root, primary_signature, diff)
             if repeat:

@@ -26,6 +26,19 @@ Rules:
   (requires explicit justification in the reason field).
 - Reject if the diff is unrelated to the reported failures.
 - Reject if secrets or .env files are changed.
+- Reject if the diff changes what a classification/type-resolution function
+  (e.g. anything that maps one type/category to another, like resolving a
+  workflow's type, an entity's status set, or similar routing logic) returns
+  for an ALREADY-EXISTING type or category — that reclassifies real, live
+  data going forward, not just the one failing case, and is a structural
+  change wearing a bug-fix disguise. A typo fix to an existing value is fine;
+  changing what value a whole category maps to is not.
+- Reject if the diff introduces a new variable or branch whose name suggests
+  it's compensating for a previous change rather than fixing the underlying
+  issue (e.g. names like original_X, legacy_X, real_X used to work around a
+  type/value that was itself changed elsewhere) — this is a sign an earlier
+  fix broke something and this diff is patching around it instead of fixing
+  or reverting that earlier fix.
 """.strip()
 
 

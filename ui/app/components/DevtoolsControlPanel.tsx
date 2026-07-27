@@ -546,6 +546,7 @@ export default function DevtoolsControlPanel({
                       confidence?: string;
                       outcome?: string;
                       skip_reason?: string;
+                      sensitive_flags?: string[];
                       review?: { approve?: boolean; reason?: string };
                     }>
                   | undefined;
@@ -566,6 +567,11 @@ export default function DevtoolsControlPanel({
                                   ({t.suites?.join(", ")} · confidence: {t.confidence})
                                 </span>
                               </div>
+                              {t.sensitive_flags && t.sensitive_flags.length > 0 ? (
+                                <div style={{ color: "#fde68a", fontSize: 12, fontWeight: 600 }}>
+                                  ⚠ {t.sensitive_flags.join(" · ")}
+                                </div>
+                              ) : null}
                               {t.review?.reason ? (
                                 <div style={{ color: "var(--text-secondary)", fontSize: 12 }}>{t.review.reason}</div>
                               ) : t.skip_reason ? (
