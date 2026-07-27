@@ -26,7 +26,13 @@ STALE_RUNNING_SEC = 5400
 _lock = threading.Lock()
 _watch_stop = threading.Event()
 _watch_thread: threading.Thread | None = None
-_watch_state: dict[str, Any] = {"enabled": False, "interval_sec": 300, "last_run_job_id": None}
+_watch_state: dict[str, Any] = {
+    "enabled": False,
+    "interval_sec": 300,
+    "last_run_job_id": None,
+    "last_autofix_job_id": None,
+    "autofix_on_failure": True,
+}
 
 
 def _db_conn():
@@ -369,9 +375,22 @@ def get_watch_status() -> dict[str, Any]:
 def _watch_loop(interval_sec: int, params: dict[str, Any]) -> None:
     from app.db import get_connection
 
+    autofix_enabled = bool(params.get("autofix_on_failure", True))
+    autofix_max_attempts = int(params.get("autofix_max_attempts", 5))
+
     while not _watch_stop.is_set():
         conn = next(get_connection())
         try:
+            # Never overlap with an autofix already in flight (manually
+            # started, or from a previous watch tick) — its own internal
+            # judge/fixer/reviewer loop already re-verifies as it goes, so a
+            # fresh top-level judge run here would just race it.
+            running_autofix = get_latest_job(conn, "autofix")
+            if running_autofix and running_autofix.get("status") in {"queued", "running"}:
+                if _watch_stop.wait(interval_sec):
+                    break
+                continue
+
             job_id = _insert_job(
                 conn,
                 kind="judge",
@@ -382,6 +401,28 @@ def _watch_loop(interval_sec: int, params: dict[str, Any]) -> None:
             with _lock:
                 _watch_state["last_run_job_id"] = str(job_id)
             _run_job_worker(job_id, "judge", {**params, "watch_triggered": True})
+
+            if autofix_enabled:
+                judge_job = get_job(conn, job_id)
+                judge_report = (judge_job or {}).get("report") or {}
+                if judge_report.get("overall") == "fail":
+                    autofix_params = {
+                        "quick": bool(params.get("quick", True)),
+                        "full": bool(params.get("full", False)),
+                        "max_attempts": autofix_max_attempts,
+                        "operator_llm": False,
+                        "base_url": params.get("base_url") or DEFAULT_BASE_URL,
+                    }
+                    autofix_job_id = _insert_job(
+                        conn,
+                        kind="autofix",
+                        params=autofix_params,
+                        actor_user_id=None,
+                        actor_email="watch@system",
+                    )
+                    with _lock:
+                        _watch_state["last_autofix_job_id"] = str(autofix_job_id)
+                    _spawn_autofix_subprocess(autofix_job_id, autofix_params)
         except Exception:
             pass
         finally:
@@ -409,6 +450,7 @@ def set_watch(
                     "enabled": True,
                     "interval_sec": max(60, interval_sec),
                     "params": params,
+                    "autofix_on_failure": bool(params.get("autofix_on_failure", True)),
                 }
             )
             if _watch_thread is None or not _watch_thread.is_alive():

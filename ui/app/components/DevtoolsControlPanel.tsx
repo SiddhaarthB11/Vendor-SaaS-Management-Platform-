@@ -329,6 +329,11 @@ export default function DevtoolsControlPanel({
         fix, reviewer, commit, repeat until green. Jobs run in the background; refresh or wait for live
         progress below.
       </p>
+      <p style={{ color: "var(--text-secondary)", marginBottom: 20, maxWidth: 720, fontSize: 13 }}>
+        Self-Heal Watch runs Judge on a timer and, on any failure, automatically starts Autofix — no click
+        needed to detect, diagnose, fix, or re-verify. Merging into main always stays a manual, human click,
+        even with Watch running.
+      </p>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: 10, marginBottom: 20 }}>
         <button
@@ -381,7 +386,7 @@ export default function DevtoolsControlPanel({
             color: status?.watch?.enabled ? "#fca5a5" : "#cbd5e1",
           }}
         >
-          {status?.watch?.enabled ? "⏹ Stop Watch" : "👁 Enable Watch (5 min)"}
+          {status?.watch?.enabled ? "⏹ Stop Self-Heal Watch" : "👁 Enable Self-Heal Watch (5 min)"}
         </button>
         <button type="button" disabled={!!busy} onClick={() => void fetchStatus()}>
           Refresh status

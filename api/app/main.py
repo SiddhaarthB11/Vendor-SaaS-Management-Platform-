@@ -9379,6 +9379,12 @@ def devtools_set_watch(payload: dict = Body(default={}), conn: Connection = Depe
         "quick": payload.get("quick", True),
         "full": payload.get("full", False),
         "base_url": payload.get("base_url") or "http://127.0.0.1:8000",
+        # Full self-heal: on a failing watch tick, automatically start Autofix
+        # (Fixer -> Reviewer -> commit loop) with no human needed to click
+        # "Start Autofix". Merging into main stays a deliberate human action —
+        # see merge_branch's docstring — this only automates detect+fix+verify.
+        "autofix_on_failure": bool(payload.get("autofix_on_failure", True)),
+        "autofix_max_attempts": int(payload.get("autofix_max_attempts") or 5),
     }
     return set_watch(
         conn,
