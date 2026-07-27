@@ -373,13 +373,23 @@ def get_watch_status() -> dict[str, Any]:
 
 
 def _watch_loop(interval_sec: int, params: dict[str, Any]) -> None:
-    from app.db import get_connection
-
+    # NOTE: deliberately NOT app.db.get_connection() here. That's a generator
+    # (`yield conn; finally: conn.close()`) meant for FastAPI's dependency
+    # injection, which keeps a reference to the generator object for the
+    # whole request and closes it at the right time. `next(get_connection())`
+    # only keeps the yielded connection, not the generator itself — with
+    # nothing referencing it, it can be garbage-collected immediately, which
+    # runs its `finally: conn.close()` right away and closes the connection
+    # before first use. Confirmed live: every tick failed with "the
+    # connection is closed" the instant it ran. _db_conn() is a plain
+    # function returning a connection directly — no generator, no gotcha.
+    print(f"[watch] loop thread starting, interval={interval_sec}s params={params}", flush=True)
     autofix_enabled = bool(params.get("autofix_on_failure", True))
     autofix_max_attempts = int(params.get("autofix_max_attempts", 5))
 
     while not _watch_stop.is_set():
-        conn = next(get_connection())
+        print("[watch] tick", flush=True)
+        conn = _db_conn()
         try:
             # Never overlap with an autofix already in flight (manually
             # started, or from a previous watch tick) — its own internal
@@ -423,8 +433,11 @@ def _watch_loop(interval_sec: int, params: dict[str, Any]) -> None:
                     with _lock:
                         _watch_state["last_autofix_job_id"] = str(autofix_job_id)
                     _spawn_autofix_subprocess(autofix_job_id, autofix_params)
-        except Exception:
-            pass
+        except Exception as exc:
+            import traceback
+
+            print(f"[watch] tick failed: {exc!r}", flush=True)
+            traceback.print_exc()
         finally:
             conn.close()
         if _watch_stop.wait(interval_sec):
@@ -498,20 +511,25 @@ def resume_watch_from_db() -> None:
     reload), resume it automatically instead of silently staying off until
     a human notices and re-enables it by hand."""
     global _watch_thread
+    print("[watch] resume_watch_from_db() called", flush=True)
     try:
         conn = _db_conn()
-    except Exception:
+    except Exception as exc:
+        print(f"[watch] resume: could not connect to db: {exc!r}", flush=True)
         return
     try:
         with conn.cursor() as cur:
             cur.execute("SELECT enabled, interval_sec, params FROM slmct.devtools_watch_state WHERE id = 1")
             row = cur.fetchone()
-    except Exception:
+    except Exception as exc:
+        print(f"[watch] resume: query failed: {exc!r}", flush=True)
         row = None
     finally:
         conn.close()
 
+    print(f"[watch] resume: row={row}", flush=True)
     if not row or not row.get("enabled"):
+        print("[watch] resume: not enabled in db, staying off", flush=True)
         return
 
     interval_sec = max(60, int(row.get("interval_sec") or 300))
@@ -527,6 +545,7 @@ def resume_watch_from_db() -> None:
             }
         )
         if _watch_thread is None or not _watch_thread.is_alive():
+            print("[watch] resume: spawning watch thread", flush=True)
             _watch_thread = threading.Thread(
                 target=_watch_loop,
                 args=(interval_sec, params),
@@ -534,6 +553,8 @@ def resume_watch_from_db() -> None:
                 name="devtools-watch",
             )
             _watch_thread.start()
+        else:
+            print("[watch] resume: thread already alive, not spawning a new one", flush=True)
 
 
 def merge_branch(conn: Connection, *, branch: str, actor_roles: list[str] | None) -> dict[str, Any]:
