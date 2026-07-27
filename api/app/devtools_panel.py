@@ -465,7 +465,75 @@ def set_watch(
             _watch_stop.set()
             _watch_state["enabled"] = False
 
+    _persist_watch_state(conn, enabled=enabled, interval_sec=_watch_state["interval_sec"], params=params)
     return get_watch_status()
+
+
+def _persist_watch_state(conn: Connection, *, enabled: bool, interval_sec: int, params: dict[str, Any]) -> None:
+    """Save watch on/off state to Postgres so it survives a uvicorn --reload
+    restart — see devtools_watch_state migration for why this matters: the
+    file changes Autofix itself makes are exactly what triggers a reload."""
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO slmct.devtools_watch_state (id, enabled, interval_sec, params, updated_at)
+                VALUES (1, %s, %s, %s, now())
+                ON CONFLICT (id) DO UPDATE SET
+                    enabled = EXCLUDED.enabled,
+                    interval_sec = EXCLUDED.interval_sec,
+                    params = EXCLUDED.params,
+                    updated_at = now()
+                """,
+                (enabled, interval_sec, Json(params)),
+            )
+        conn.commit()
+    except Exception:
+        conn.rollback()
+
+
+def resume_watch_from_db() -> None:
+    """Call once at API startup. If watch was left enabled before the last
+    restart (very possibly caused by Autofix's own edits triggering a
+    reload), resume it automatically instead of silently staying off until
+    a human notices and re-enables it by hand."""
+    global _watch_thread
+    try:
+        conn = _db_conn()
+    except Exception:
+        return
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT enabled, interval_sec, params FROM slmct.devtools_watch_state WHERE id = 1")
+            row = cur.fetchone()
+    except Exception:
+        row = None
+    finally:
+        conn.close()
+
+    if not row or not row.get("enabled"):
+        return
+
+    interval_sec = max(60, int(row.get("interval_sec") or 300))
+    params = row.get("params") or {}
+    with _lock:
+        _watch_stop.clear()
+        _watch_state.update(
+            {
+                "enabled": True,
+                "interval_sec": interval_sec,
+                "params": params,
+                "autofix_on_failure": bool(params.get("autofix_on_failure", True)),
+            }
+        )
+        if _watch_thread is None or not _watch_thread.is_alive():
+            _watch_thread = threading.Thread(
+                target=_watch_loop,
+                args=(interval_sec, params),
+                daemon=True,
+                name="devtools-watch",
+            )
+            _watch_thread.start()
 
 
 def merge_branch(conn: Connection, *, branch: str, actor_roles: list[str] | None) -> dict[str, Any]:

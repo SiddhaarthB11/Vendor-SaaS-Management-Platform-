@@ -89,6 +89,14 @@ async def _lifespan(app: FastAPI):
     scheduler.add_job(_renewal_alerts_job,  "cron", hour=7, minute=0,  id="daily_renewal_alerts")
     scheduler.start()
     log.info("APScheduler started — FX 00:30, price scrape 01:00, renewal alerts 07:00 UTC")
+
+    try:
+        from app.devtools_panel import resume_watch_from_db
+
+        resume_watch_from_db()
+    except Exception:
+        log.exception("Failed to resume devtools Self-Heal Watch from persisted state")
+
     yield
     scheduler.shutdown(wait=False)
 
