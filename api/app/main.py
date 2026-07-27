@@ -5532,7 +5532,7 @@ def _diag_resolve_context(conn) -> dict:
                 JOIN slmct.user_roles ur ON ur.user_id = au.id AND ur.revoked_at IS NULL
                 JOIN slmct.roles r ON r.id = ur.role_id
                 WHERE r.code = %s AND au.status = 'active'
-                ORDER BY au.created_at
+                ORDER BY au.created_at, au.id
                 LIMIT 1
                 """,
                 (role_code,),
