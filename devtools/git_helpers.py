@@ -105,15 +105,22 @@ def has_commits(repo_root: Path) -> bool:
 
 
 def has_changes(repo_root: Path) -> bool:
-    """True if the working tree has changes outside devtools/state/ — every
-    judge + autofix run leaves untracked debug artifacts there by design
-    (fixer_output_*.txt, judge_report_*.json, ...), so a blanket
-    `git status --porcelain` would always look dirty and permanently block
-    the merge-from-panel action after every single autofix run."""
+    """True if the working tree has changes autofix actually cares about.
+
+    Scoped to STAGE_PATHS (plus devtools/state/, excluded separately since
+    every judge/autofix run leaves untracked debug artifacts there by
+    design) rather than a blanket `git status --porcelain`. Without this,
+    anything present-but-never-staged — db/ is a real example: it's shipped
+    in the image but deliberately outside STAGE_PATHS, so it always shows as
+    untracked — would look "dirty" forever and permanently block the
+    merge-from-panel action after every single autofix run, not just once.
+    """
     out = run_git(repo_root, ["status", "--porcelain"], check=False).stdout
     for line in out.splitlines():
         path = line[3:].strip().strip('"')
-        if not path.startswith("devtools/state/"):
+        if path.startswith("devtools/state/"):
+            continue
+        if any(path == prefix or path.startswith(prefix + "/") for prefix in STAGE_PATHS):
             return True
     return False
 
