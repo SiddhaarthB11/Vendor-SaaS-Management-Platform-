@@ -209,15 +209,39 @@ def plant_random_breaks(
     }
 
 
+def _break_still_present(repo_root: Path, b: dict[str, Any]) -> bool:
+    """Whether this break's broken marker text is still literally in the file.
+
+    The state file only records what we THOUGHT we planted at plant-time —
+    it's never updated afterward. If Autofix fixes the underlying bug via a
+    different diff than the exact "restore" pattern (the common case — the
+    Fixer rewrites the surrounding logic rather than reverting verbatim),
+    this file has no way to know and reports "active" forever, even though
+    the break is long gone. Checking the actual file content is the only way
+    to know if a break is still real right now.
+    """
+    target = _safe_path(repo_root, b.get("path") or "")
+    if not target or not target.is_file():
+        return False
+    try:
+        text = target.read_text(encoding="utf-8")
+    except OSError:
+        return False
+    broken = b.get("broken") or ""
+    return bool(broken) and broken in text
+
+
 def status(repo_root: Path) -> dict[str, Any]:
     state = get_planted_breaks(repo_root)
     if not state:
         return {"active": False, "count": 0, "breaks": [], "catalog_size": len(catalog_for_judge(include_slow=True)), "quick_catalog_size": len(catalog_for_judge(include_slow=False))}
     breaks = state.get("breaks") or []
+    live_breaks = [b for b in breaks if _break_still_present(repo_root, b)]
+    resolved_breaks = [b for b in breaks if not _break_still_present(repo_root, b)]
     return {
-        "active": True,
+        "active": bool(live_breaks),
         "planted_at": state.get("planted_at"),
-        "count": len(breaks),
+        "count": len(live_breaks),
         "breaks": [
             {
                 "id": b.get("id"),
@@ -225,7 +249,17 @@ def status(repo_root: Path) -> dict[str, Any]:
                 "feature": b.get("feature"),
                 "path": b.get("path"),
             }
-            for b in breaks
+            for b in live_breaks
+        ],
+        "resolved_count": len(resolved_breaks),
+        "resolved_breaks": [
+            {
+                "id": b.get("id"),
+                "suite": b.get("suite"),
+                "feature": b.get("feature"),
+                "path": b.get("path"),
+            }
+            for b in resolved_breaks
         ],
         "catalog_size": len(catalog_for_judge(include_slow=True)),
         "quick_catalog_size": len(catalog_for_judge(include_slow=False)),

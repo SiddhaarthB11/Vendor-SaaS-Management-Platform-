@@ -87,6 +87,8 @@ def cancel_job(conn: Connection, job_id: UUID, *, actor_roles: list[str] | None)
     _require_master(actor_roles)
     _expire_stale_jobs(conn)
     with conn.cursor() as cur:
+        cur.execute("SELECT pid FROM slmct.devtools_jobs WHERE id = %s", (job_id,))
+        pid_row = cur.fetchone()
         cur.execute(
             """
             UPDATE slmct.devtools_jobs
@@ -101,6 +103,8 @@ def cancel_job(conn: Connection, job_id: UUID, *, actor_roles: list[str] | None)
         )
         row = cur.fetchone()
     conn.commit()
+    if row and pid_row:
+        _kill_job_process(pid_row.get("pid"))
     if not row:
         job = get_job(conn, job_id)
         if not job:
@@ -323,7 +327,13 @@ def start_job(
         # process mid-run. A background thread dies with it silently (job hangs
         # forever at "running"). A detached subprocess is immune to that restart
         # and writes its own progress straight to the devtools_jobs row.
-        _spawn_autofix_subprocess(job_id, params)
+        pid = _spawn_autofix_subprocess(job_id, params)
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE slmct.devtools_jobs SET pid = %s WHERE id = %s",
+                (pid, job_id),
+            )
+        conn.commit()
     else:
         thread = threading.Thread(
             target=_run_job_worker,
@@ -336,7 +346,7 @@ def start_job(
     return job or {"id": str(job_id), "kind": kind, "status": "queued"}
 
 
-def _spawn_autofix_subprocess(job_id: UUID, params: dict[str, Any]) -> None:
+def _spawn_autofix_subprocess(job_id: UUID, params: dict[str, Any]) -> int:
     import json
     import subprocess
     import sys
@@ -355,7 +365,7 @@ def _spawn_autofix_subprocess(job_id: UUID, params: dict[str, Any]) -> None:
     else:
         kwargs["creationflags"] = getattr(subprocess, "CREATE_NEW_PROCESS_GROUP", 0)
 
-    subprocess.Popen(
+    proc = subprocess.Popen(
         [
             sys.executable,
             "-m",
@@ -365,6 +375,31 @@ def _spawn_autofix_subprocess(job_id: UUID, params: dict[str, Any]) -> None:
         ],
         **kwargs,
     )
+    return proc.pid
+
+
+def _kill_job_process(pid: int | None) -> None:
+    """Best-effort termination of a detached autofix subprocess.
+
+    Same detachment that protects the subprocess from --reload restarts
+    (start_new_session / CREATE_NEW_PROCESS_GROUP) means a plain os.kill on
+    the PID only signals that one process, not a child tree, which is fine
+    here since autofix_subprocess_runner does the work itself rather than
+    forking further children.
+    """
+    if not pid:
+        return
+    import signal
+
+    try:
+        if os.name == "posix":
+            os.kill(pid, signal.SIGTERM)
+        else:
+            import subprocess
+
+            subprocess.run(["taskkill", "/F", "/T", "/PID", str(pid)], check=False, capture_output=True)
+    except (ProcessLookupError, OSError):
+        pass
 
 
 def get_watch_status() -> dict[str, Any]:
@@ -432,7 +467,13 @@ def _watch_loop(interval_sec: int, params: dict[str, Any]) -> None:
                     )
                     with _lock:
                         _watch_state["last_autofix_job_id"] = str(autofix_job_id)
-                    _spawn_autofix_subprocess(autofix_job_id, autofix_params)
+                    autofix_pid = _spawn_autofix_subprocess(autofix_job_id, autofix_params)
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "UPDATE slmct.devtools_jobs SET pid = %s WHERE id = %s",
+                            (autofix_pid, autofix_job_id),
+                        )
+                    conn.commit()
         except Exception as exc:
             import traceback
 
@@ -503,6 +544,88 @@ def _persist_watch_state(conn: Connection, *, enabled: bool, interval_sec: int, 
         conn.commit()
     except Exception:
         conn.rollback()
+
+
+def _pid_alive(pid: int | None) -> bool:
+    if not pid:
+        return False
+    try:
+        if os.name == "posix":
+            os.kill(pid, 0)
+        else:
+            import subprocess
+
+            out = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}"], capture_output=True, text=True, check=False
+            ).stdout
+            return str(pid) in out
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        # Process exists, just owned by someone else — still alive.
+        return True
+    except OSError:
+        return False
+
+
+def reap_orphaned_jobs_at_startup() -> int:
+    """Call once at API startup, before resume_watch_from_db().
+
+    judge jobs run as an in-process thread — no restart of any kind (worker
+    reload or full container recreate) leaves that thread alive, so any judge
+    row still 'queued'/'running' at startup is unconditionally orphaned.
+
+    autofix jobs are deliberately different: they run as a *detached*
+    subprocess (start_new_session / CREATE_NEW_PROCESS_GROUP) specifically so
+    they survive a uvicorn --reload worker restart — that's the whole reason
+    it isn't a thread like judge. Blanket-reaping every 'running' autofix row
+    on every startup would defeat that: a routine reload (the fixer editing
+    its own watched files) would falsely kill a still-working subprocess.
+    So autofix rows are only reaped if their recorded pid is actually dead —
+    true after a full container restart/recreate, false after a worker reload.
+
+    Without this, an orphaned 'running' autofix row (pid genuinely dead)
+    permanently jams watch's own overlap guard — get_latest_job(conn,
+    "autofix") sees it as still in flight forever, so the self-heal loop
+    silently no-ops on every tick until the 5400s stale-job timeout clears
+    it. Confirmed live: a container restart mid-autofix left the loop dead
+    for 35+ minutes with no visible error, just silent no-op ticks.
+    """
+    print("[startup] reap_orphaned_jobs_at_startup() called", flush=True)
+    conn = _db_conn()
+    reaped_ids: list[str] = []
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT id, kind, pid FROM slmct.devtools_jobs WHERE status IN ('queued', 'running')"
+            )
+            rows = cur.fetchall()
+            for row in rows:
+                if row["kind"] == "autofix" and _pid_alive(row.get("pid")):
+                    print(f"[startup] autofix job {row['id']} pid={row['pid']} still alive, not reaping", flush=True)
+                    continue
+                cur.execute(
+                    """
+                    UPDATE slmct.devtools_jobs
+                    SET status = 'failed',
+                        error = COALESCE(error, 'Orphaned: process restarted while this job was in flight.'),
+                        finished_at = COALESCE(finished_at, now()),
+                        updated_at = now()
+                    WHERE id = %s
+                    """,
+                    (row["id"],),
+                )
+                reaped_ids.append(str(row["id"]))
+        conn.commit()
+        if reaped_ids:
+            print(f"[startup] reaped {len(reaped_ids)} orphaned job(s): {reaped_ids}", flush=True)
+        return len(reaped_ids)
+    except Exception as exc:
+        print(f"[startup] reap_orphaned_jobs_at_startup failed: {exc!r}", flush=True)
+        return 0
+    finally:
+        conn.close()
 
 
 def resume_watch_from_db() -> None:

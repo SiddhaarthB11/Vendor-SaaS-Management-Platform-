@@ -91,8 +91,9 @@ async def _lifespan(app: FastAPI):
     log.info("APScheduler started — FX 00:30, price scrape 01:00, renewal alerts 07:00 UTC")
 
     try:
-        from app.devtools_panel import resume_watch_from_db
+        from app.devtools_panel import reap_orphaned_jobs_at_startup, resume_watch_from_db
 
+        reap_orphaned_jobs_at_startup()
         resume_watch_from_db()
     except Exception:
         log.exception("Failed to resume devtools Self-Heal Watch from persisted state")

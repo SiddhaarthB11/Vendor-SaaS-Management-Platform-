@@ -21,6 +21,7 @@ from devtools.git_helpers import (
     git_available,
     has_changes,
     has_commits,
+    latest_unmerged_autofix_branch,
     normalize_main_branch,
     run_git,
     stage_autofix_changes,
@@ -72,15 +73,49 @@ class GitRepo:
         return commit_changes(self.root, message)
 
     def create_autofix_branch(self) -> str:
+        """Cut the branch this run will commit to.
+
+        If an earlier autofix branch is still sitting unmerged, base the new
+        branch on ITS tip instead of main. Every commit on an autofix branch
+        already passed Reviewer approval (rejected diffs get reverted, never
+        committed — see revert_worktree()), so chaining only ever inherits
+        already-approved fixes, not unreviewed work. Without this, each cycle
+        reset to main and re-diagnosed/re-fixed suites the previous unmerged
+        branch had already solved, looping on the same failures until a human
+        happened to click merge.
+        """
         normalize_main_branch(self.root)
+        base = latest_unmerged_autofix_branch(self.root)
+        if base:
+            checkout = self.run(["checkout", base], check=False)
+            if checkout.returncode != 0:
+                base = None
         ts = datetime.now(timezone.utc).strftime("%Y%m%d-%H%M%S")
         branch = f"autofix/{ts}"
         self.run(["checkout", "-b", branch])
+        if base:
+            # base's commits are all reachable from `branch` now — drop the old
+            # label so the panel only ever shows one branch to merge, not a
+            # trail of superseded ones.
+            self.run(["branch", "-D", base], check=False)
         return branch
 
     def revert_worktree(self) -> None:
+        """Undo a rejected task's edits — scoped, never a blanket clean.
+
+        A previous version ran `git clean -fd --exclude=devtools/state/*`
+        across the whole repo. Paths like db/ are deliberately outside
+        STAGE_PATHS (see has_changes()'s docstring) so they're always
+        untracked from this repo's point of view — a blanket `-fd` deletes
+        them for real. That's exactly what happened live: an orphaned
+        autofix subprocess reverted a task, wiped db/ inside the container,
+        and the API crash-looped on a missing db/apply-local.sh. Only clean
+        inside the directories autofix actually edits.
+        """
         self.run(["checkout", "--", "."], check=False)
-        self.run(["clean", "-fd", "--exclude=devtools/state/*"], check=False)
+        for rel in ("api", "devtools", "ui/app"):
+            if (self.root / rel).exists():
+                self.run(["clean", "-fd", "--exclude=devtools/state/*", "--", rel], check=False)
 
 
 def _emit(on_progress: Callable[[dict[str, Any]], None] | None, event: dict[str, Any]) -> None:
@@ -193,6 +228,23 @@ def run_autofix_loop_report(
 
     _emit(on_progress, {"phase": "branch", "branch": branch, "from": original_branch})
 
+    # Regression guard: each attempt's fixes get committed the moment the
+    # Reviewer approves them, with nothing comparing net failure count
+    # before vs. after. Confirmed live: 4 straight attempts each had at
+    # least one task "committed" by an approving Reviewer, yet total check
+    # failures went 30 -> 37 -> 37 -> 37 — individually-plausible fixes that
+    # composed into a net regression, never caught, never rolled back.
+    # best_sha/best_failure_count track the best state seen so far in THIS
+    # run; if a later judge check comes back worse, we revert to best_sha
+    # instead of piling more attempts on top of a known regression.
+    best_sha = git.run(["rev-parse", "HEAD"], check=False).stdout.strip()
+    best_failure_count: int | None = None
+
+    def _failure_count(rep: dict[str, Any]) -> int:
+        summary = rep.get("summary") or {}
+        val = summary.get("total_check_failures")
+        return int(val) if val is not None else int(summary.get("failed") or 0)
+
     for attempt in range(1, max_attempts + 1):
         report_path = git.state_dir / f"judge_report_attempt_{attempt}.json"
         _emit(on_progress, {"phase": "judge", "attempt": attempt, "max_attempts": max_attempts})
@@ -202,6 +254,25 @@ def run_autofix_loop_report(
             quick=quick_judge,
             output_path=report_path,
         )
+
+        current_failures = _failure_count(report)
+        if best_failure_count is None:
+            best_failure_count = current_failures
+            best_sha = git.run(["rev-parse", "HEAD"], check=False).stdout.strip()
+        elif current_failures > best_failure_count:
+            print(
+                f"[autofix] attempt {attempt}: judge got WORSE ({current_failures} > "
+                f"{best_failure_count} check-failures) — reverting to last known-good "
+                f"commit {best_sha[:8]} and stopping instead of compounding the regression",
+                flush=True,
+            )
+            git.run(["reset", "--hard", best_sha], check=False)
+            _emit(on_progress, {"phase": "regression_reverted", "attempt": attempt, "reverted_to": best_sha})
+            break
+        elif current_failures < best_failure_count:
+            best_failure_count = current_failures
+            best_sha = git.run(["rev-parse", "HEAD"], check=False).stdout.strip()
+
         attempt_row: dict[str, Any] = {
             "attempt": attempt,
             "judge_overall": report.get("overall"),
@@ -385,6 +456,21 @@ def run_autofix_loop_report(
             break
 
     final_judge = run_judge(base_url=base_url, quick=quick_judge)
+    reverted_final = False
+    if best_failure_count is not None and _failure_count(final_judge) > best_failure_count:
+        # The last attempt's own commits never got checked against best_sha —
+        # there's no next loop iteration to catch it. Check now, before handing
+        # the branch back for merge, so a regression from the final attempt
+        # can't slip through untested.
+        print(
+            f"[autofix] final attempt regressed ({_failure_count(final_judge)} > "
+            f"{best_failure_count} check-failures) — reverting to {best_sha[:8]} before returning",
+            flush=True,
+        )
+        git.run(["reset", "--hard", best_sha], check=False)
+        final_judge = run_judge(base_url=base_url, quick=quick_judge)
+        reverted_final = True
+
     overall = final_judge.get("overall") or "fail"
     result = {
         "mode": "autofix",
@@ -392,6 +478,7 @@ def run_autofix_loop_report(
         "branch": branch,
         "attempts": attempts,
         "judge": final_judge,
+        "reverted_final_regression": reverted_final,
         "note": f"Branch `{branch}` left for inspection. Merge when satisfied.",
     }
     _request_cleanup_sweep(base_url)

@@ -60,6 +60,18 @@ def ensure_git_repo(repo_root: Path) -> None:
     run_git(repo_root, ["checkout", "-B", "main"], check=False)
 
 
+def latest_unmerged_autofix_branch(repo_root: Path) -> str | None:
+    """Most recently created autofix/* branch still around (unmerged branches
+    get deleted by merge_branch_to_main, so any that still exist are, by
+    definition, unmerged and waiting on a human merge click).
+
+    Branch names are `autofix/<UTC timestamp>`, so lexical sort == chrono sort.
+    """
+    out = run_git(repo_root, ["branch", "--list", "autofix/*", "--format=%(refname:short)"], check=False).stdout
+    branches = sorted(line.strip() for line in out.splitlines() if line.strip())
+    return branches[-1] if branches else None
+
+
 def normalize_main_branch(repo_root: Path) -> str:
     """Ensure a sensible default branch name, and make sure we're actually ON
     it before a new autofix branch gets cut. A previous failed/incomplete run

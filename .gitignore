@@ -23,3 +23,7 @@ Thumbs.db
 coverage/
 dist/
 build/
+
+# stray test artifacts
+judge_result.json
+*_result.json
